@@ -1,6 +1,7 @@
 import { SceneManager } from './SceneManager.js';
 import { CameraController } from './CameraController.js';
 import { RotationController } from './RotationController.js';
+import { WebSocketClient } from './WebSocketClient.js';
 
 /**
  * Main application class that orchestrates the 3D scene and user interactions
@@ -12,6 +13,7 @@ export class Application {
     this.sceneManager = new SceneManager(canvas, this.cameraController.getCamera());
     this.rotationController = new RotationController(this.sceneManager.getCube());
     
+    this._setupWebSocket();
     this._setupEventListeners();
     this._startAnimation();
   }
@@ -88,6 +90,29 @@ export class Application {
       e.preventDefault();
       const touch = e.touches[0];
       this.rotationController.updateDrag(touch.clientX, touch.clientY);
+    }
+  }
+
+  _setupWebSocket() {
+    this.wsClient = new WebSocketClient((command) => {
+      this._handleWebSocketCommand(command);
+    });
+    this.wsClient.connect();
+  }
+
+  _handleWebSocketCommand(command) {
+    switch (command.type) {
+      case 'changeColor':
+        this.sceneManager.changeCubeColor(command.color);
+        break;
+      case 'changeSize':
+        this.sceneManager.changeCubeSize(command.size);
+        break;
+      case 'scaleCube':
+        this.sceneManager.scaleCube(command.x, command.y, command.z);
+        break;
+      default:
+        console.warn('Unknown command type:', command.type);
     }
   }
 

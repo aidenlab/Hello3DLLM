@@ -63,5 +63,50 @@ export class SceneManager {
   getCube() {
     return this.cube.getMesh();
   }
+
+  /**
+   * Gets the cube instance for full manipulation access
+   * @returns {Cube} The cube instance
+   */
+  getCubeInstance() {
+    return this.cube;
+  }
+
+  /**
+   * Changes the color of the cube
+   * @param {string} color - Hex color string (e.g., "#ff0000")
+   */
+  changeCubeColor(color) {
+    const hexColor = parseInt(color.replace('#', ''), 16);
+    this.cube.getMaterial().color.setHex(hexColor);
+  }
+
+  /**
+   * Changes the uniform size of the cube by recreating the geometry
+   * @param {number} size - New size value
+   */
+  changeCubeSize(size) {
+    // Dispose old geometry
+    this.cube.getGeometry().dispose();
+    
+    // Create new geometry with new size
+    const newGeometry = new THREE.BoxGeometry(size, size, size);
+    newGeometry.computeVertexNormals();
+    newGeometry.normalizeNormals();
+    
+    // Replace geometry
+    this.cube.mesh.geometry = newGeometry;
+    this.cube.geometry = newGeometry;
+  }
+
+  /**
+   * Scales the cube independently in each dimension
+   * @param {number} x - Scale factor for X axis
+   * @param {number} y - Scale factor for Y axis
+   * @param {number} z - Scale factor for Z axis
+   */
+  scaleCube(x, y, z) {
+    this.cube.getMesh().scale.set(x, y, z);
+  }
 }
 
