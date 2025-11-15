@@ -12,16 +12,18 @@ export class WebSocketClient {
     this.isConnecting = false;
   }
 
-  connect(url = 'ws://localhost:3001') {
+  connect(url = null) {
+    // Use environment variable or default to localhost for development
+    const wsUrl = url || import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
       return;
     }
 
     this.isConnecting = true;
-    console.log(`Connecting to WebSocket server at ${url}...`);
+    console.log(`Connecting to WebSocket server at ${wsUrl}...`);
 
     try {
-      this.ws = new WebSocket(url);
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         console.log('WebSocket connected');
@@ -50,12 +52,12 @@ export class WebSocketClient {
       this.ws.onclose = () => {
         console.log('WebSocket disconnected');
         this.isConnecting = false;
-        this._attemptReconnect(url);
+        this._attemptReconnect(wsUrl);
       };
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);
       this.isConnecting = false;
-      this._attemptReconnect(url);
+      this._attemptReconnect(wsUrl);
     }
   }
 

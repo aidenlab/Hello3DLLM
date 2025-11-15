@@ -6,6 +6,9 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 const MCP_PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
 const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 3001;
@@ -345,10 +348,31 @@ app.delete('/mcp', async (req, res) => {
   }
 });
 
+// Serve static files from dist folder (for unified deployment)
+// This must be after all API routes
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const distPath = join(__dirname, 'dist');
+
+if (existsSync(distPath)) {
+  app.use(express.static(distPath));
+  // Serve index.html for all non-API routes (SPA routing)
+  app.get('*', (req, res) => {
+    // Don't serve index.html for MCP routes (shouldn't reach here, but safety check)
+    if (req.path.startsWith('/mcp')) {
+      return res.status(404).send('Not found');
+    }
+    res.sendFile(join(distPath, 'index.html'));
+  });
+}
+
 // Start HTTP server
 app.listen(MCP_PORT, () => {
   console.log(`MCP Server listening on http://localhost:${MCP_PORT}/mcp`);
   console.log(`WebSocket server listening on ws://localhost:${WS_PORT}`);
+  if (existsSync(distPath)) {
+    console.log(`Serving static files from ${distPath}`);
+  }
 });
 
 // Handle server shutdown
