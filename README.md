@@ -99,34 +99,125 @@ This will automatically open Cursor and configure the MCP server.
 
 ### Using ChatGPT
 
-**Important:** For ChatGPT to connect, your MCP server must be publicly accessible (not just `localhost`). You'll need to:
+**Important:** For ChatGPT to connect, your MCP server must be publicly accessible (not just `localhost`). Follow these steps in order:
 
-1. **Deploy your server** to a public URL (e.g., using services like Railway, Render, Fly.io, or ngrok for testing)
+#### Step 1: Start the MCP Server Locally
 
-2. **Configure in ChatGPT:**
-   - Go to ChatGPT Settings → Personalization → Model Context Protocol
-   - Click "Add Server" or "Create Server"
-   - Enter:
-     - **Name**: `3d-cube-server` (or any name you prefer)
-     - **URL**: Your public server URL (e.g., `https://your-domain.com/mcp` or `https://your-app.railway.app/mcp`)
-     - **Transport**: HTTP/Streamable HTTP
+In a terminal, start the MCP server:
+```bash
+npm run mcp:server
+```
 
-3. **For local testing with ChatGPT**, use a tunneling service:
+You should see:
+```
+MCP Server listening on http://localhost:3000/mcp
+WebSocket server listening on ws://localhost:3001
+```
+
+**Keep this terminal running** - the server must stay active for ChatGPT to connect.
+
+#### Step 2: Make the Server Publicly Accessible
+
+You have two options:
+
+**Option A: Using ngrok (Recommended for Testing)**
+
+1. **Install ngrok** (if not already installed):
+   - Download from https://ngrok.com
+   - Or install via Homebrew: `brew install ngrok`
+
+2. **Start ngrok** in a **new terminal** (keep the MCP server running):
+   
+   **Basic usage** (random URL):
    ```bash
-   # Using ngrok (install from https://ngrok.com)
    ngrok http 3000
    ```
-   Then use the ngrok HTTPS URL in ChatGPT (e.g., `https://abc123.ngrok.io/mcp`)
-
-4. **Security Note**: The current server allows all origins (`origin: '*'`). For production, restrict CORS to specific domains:
-   ```javascript
-   cors({
-     origin: ['https://chat.openai.com', 'https://chatgpt.com'],
-     // ... other options
-   })
+   
+   **Using a custom domain** (requires ngrok account):
+   ```bash
+   ngrok http 3000 --domain=your-custom-name.ngrok-free.app
    ```
+   
+   Or if you have a reserved domain:
+   ```bash
+   ngrok http 3000 --domain=your-reserved-domain.ngrok.io
+   ```
+   
+   **Note:** Custom domains require:
+   - A free ngrok account (sign up at https://ngrok.com)
+   - For `.ngrok-free.app`: Available on free tier
+   - For `.ngrok.io`: Requires paid plan with reserved domain
 
-**The server is now ChatGPT-compatible** with:
+3. **Copy the HTTPS URL** that ngrok provides (e.g., `https://abc123.ngrok-free.app` or your custom domain)
+   - This is your public URL that ChatGPT will use
+   - **Important:** Use the HTTPS URL, not HTTP
+   - **Tip:** If using a custom domain, you can reuse the same URL each time
+
+**Option B: Deploy to a Public Service**
+
+Deploy your server to a service like Railway, Render, or Fly.io. Make sure:
+- The server runs on the service's assigned port (or use `PORT` environment variable)
+- The endpoint is accessible at `https://your-app.railway.app/mcp` (or similar)
+
+#### Step 3: Configure ChatGPT
+
+1. **Open ChatGPT** in your browser
+2. **Go to Settings:**
+   - Click your profile icon (bottom left)
+   - Select "Settings" → "Personalization" → "Model Context Protocol"
+3. **Add the MCP Server:**
+   - Click "Add Server" or "Create Server"
+   - Enter the following:
+     - **Name**: `3d-cube-server` (or any name you prefer)
+     - **URL**: 
+       - If using ngrok: `https://your-ngrok-url.ngrok-free.app/mcp` (replace with your actual ngrok URL)
+       - **CRITICAL:** Make sure to include `/mcp` at the end of the URL!
+       - Example: If ngrok shows `https://abc123.ngrok-free.app`, use `https://abc123.ngrok-free.app/mcp`
+       - If deployed: `https://your-app.railway.app/mcp` (replace with your actual deployment URL)
+     - **Transport**: Select "HTTP" or "Streamable HTTP"
+4. **Save** the configuration
+
+**Common Error Fixes:**
+- **404 Not Found**: Make sure you added `/mcp` to the end of your ngrok URL
+- **Connection refused**: Verify the MCP server is running (`npm run mcp:server`)
+- **ngrok URL not working**: Check that ngrok is running and pointing to port 3000
+
+#### Step 4: Start the Web Application (Optional but Recommended)
+
+In another terminal, start the web app so you can see the cube changes:
+```bash
+npm run dev
+```
+
+Open the app in your browser (usually `http://localhost:5173`).
+
+#### Step 5: Use ChatGPT to Control the Cube
+
+Now you can ask ChatGPT to manipulate the cube! For example:
+- "Change the cube to red"
+- "Make the cube larger"
+- "Scale the cube to be 2x wider and 1.5x taller"
+
+ChatGPT will automatically use the MCP tools, and you'll see the changes in your browser in real-time.
+
+#### Troubleshooting
+
+- **ChatGPT can't connect**: Make sure ngrok is running and the MCP server is running
+- **Connection timeout**: Check that your ngrok URL is correct and includes `/mcp` at the end
+- **Tools not available**: Restart ChatGPT or refresh the page after adding the server
+- **Changes not visible**: Make sure the web app (`npm run dev`) is running and open in your browser
+
+#### Security Note
+
+The current server allows all origins (`origin: '*'`). For production use, restrict CORS to ChatGPT domains:
+```javascript
+cors({
+  origin: ['https://chat.openai.com', 'https://chatgpt.com'],
+  // ... other options
+})
+```
+
+**The server is ChatGPT-compatible** with:
 - ✅ CORS enabled for cross-origin requests
 - ✅ Streamable HTTP transport support (GET, POST, DELETE)
 - ✅ Proper session management

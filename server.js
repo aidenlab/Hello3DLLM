@@ -163,14 +163,58 @@ const transports = {};
 app.post('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
   
+  // Log request for debugging
+  if (sessionId) {
+    console.log(`Received MCP request for session: ${sessionId}, method: ${req.body?.method || 'unknown'}`);
+  } else {
+    console.log(`Received MCP request (no session), method: ${req.body?.method || 'unknown'}, body:`, JSON.stringify(req.body).substring(0, 200));
+  }
+  
   try {
     let transport;
     
     if (sessionId && transports[sessionId]) {
       // Reuse existing transport for subsequent requests
       transport = transports[sessionId];
+    } else if (sessionId && !transports[sessionId]) {
+      // Session ID provided but transport doesn't exist - session expired or lost
+      // Allow re-initialization if this is an initialize request
+      if (isInitializeRequest(req.body)) {
+        console.log(`Session ${sessionId} not found, creating new transport for re-initialization`);
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => sessionId, // Reuse the same session ID
+          onsessioninitialized: (sid) => {
+            console.log(`MCP session re-initialized: ${sid}`);
+            transports[sid] = transport;
+          }
+        });
+
+        transport.onclose = () => {
+          const sid = transport.sessionId;
+          if (sid && transports[sid]) {
+            console.log(`MCP session closed: ${sid}`);
+            delete transports[sid];
+          }
+        };
+
+        await mcpServer.connect(transport);
+      } else {
+        // Session ID exists but transport is missing and not an init request
+        // Return 404 as per MCP spec - this tells ChatGPT the session doesn't exist
+        console.error(`Session ${sessionId} not found for non-init request`);
+        res.status(404).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32001,
+            message: 'Session not found'
+          },
+          id: req.body?.id || null
+        });
+        return;
+      }
     } else if (!sessionId && isInitializeRequest(req.body)) {
       // Create new transport for initialization
+      console.log('Creating new transport for initialization');
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sid) => {
@@ -191,13 +235,19 @@ app.post('/mcp', async (req, res) => {
       await mcpServer.connect(transport);
     } else {
       // Invalid request - no session ID or not initialization request
+      console.error('Invalid request:', {
+        hasSessionId: !!sessionId,
+        isInitialize: isInitializeRequest(req.body),
+        method: req.body?.method,
+        body: JSON.stringify(req.body).substring(0, 200)
+      });
       res.status(400).json({
         jsonrpc: '2.0',
         error: {
           code: -32000,
           message: 'Bad Request: No valid session ID provided or invalid initialization request'
         },
-        id: null
+        id: req.body?.id || null
       });
       return;
     }
