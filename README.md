@@ -197,6 +197,7 @@ Now you can ask ChatGPT to manipulate the cube! For example:
 - "Change the cube to red"
 - "Make the cube larger"
 - "Scale the cube to be 2x wider and 1.5x taller"
+- "Change the background to black"
 
 ChatGPT will automatically use the MCP tools, and you'll see the changes in your browser in real-time.
 
@@ -294,6 +295,183 @@ Scales the cube independently in each dimension (x, y, z axes).
 
 This would make the cube 1.5x wider, keep the height the same, and make it 2x deeper.
 
+### 4. `change_background_color`
+
+Changes the background color of the 3D scene.
+
+**Parameters:**
+- `color` (string): Hex color code (e.g., "#000000" for black, "#ffffff" for white)
+
+**Example:**
+```json
+{
+  "name": "change_background_color",
+  "arguments": {
+    "color": "#000000"
+  }
+}
+```
+
+**Supported Colors:**
+- Black: `#000000`
+- White: `#ffffff`
+- Red: `#ff0000`
+- Blue: `#0000ff`
+- Green: `#00ff00`
+- Any valid 6-digit hex color
+
+## Adding New Tools
+
+When you add a new tool to the MCP server, you need to update several parts of the codebase and propagate the changes to make the tool available to ChatGPT and other MCP clients.
+
+### Step 1: Register the Tool in the MCP Server
+
+Add your new tool registration in `server.js` using `mcpServer.registerTool()`. Follow the pattern of existing tools:
+
+```javascript
+mcpServer.registerTool(
+  'your_tool_name',
+  {
+    title: 'Your Tool Title',
+    description: 'Description of what the tool does',
+    inputSchema: {
+      param1: z.string().describe('Parameter description'),
+      param2: z.number().describe('Another parameter')
+    }
+  },
+  async ({ param1, param2 }) => {
+    // Broadcast command to WebSocket clients
+    broadcastToClients({
+      type: 'yourCommandType',
+      param1: param1,
+      param2: param2
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Tool executed successfully with ${param1} and ${param2}`
+        }
+      ]
+    };
+  }
+);
+```
+
+### Step 2: Implement the Client-Side Handler
+
+1. **Add handler in `src/Application.js`**:
+   Add a case in the `_handleWebSocketCommand()` method:
+   ```javascript
+   case 'yourCommandType':
+     this.sceneManager.yourMethod(command.param1, command.param2);
+     break;
+   ```
+
+2. **Add method in `src/SceneManager.js`** (or appropriate file):
+   Implement the actual functionality:
+   ```javascript
+   yourMethod(param1, param2) {
+     // Your implementation here
+   }
+   ```
+
+### Step 3: Update the README
+
+Add documentation for your new tool in the "Available MCP Tools" section:
+- Tool name and description
+- Parameters with types and descriptions
+- Example JSON usage
+- Any relevant notes or examples
+
+### Step 4: Restart the MCP Server
+
+After making code changes, restart the server to load the new tool:
+
+1. **Stop the current server** (if running):
+   - Press `Ctrl+C` in the terminal where the server is running
+   - Or find and kill the process: `ps aux | grep "node server.js"` then `kill <PID>`
+
+2. **Start the server again**:
+   ```bash
+   npm run mcp:server
+   ```
+
+3. **Verify the server started**:
+   You should see:
+   ```
+   MCP Server listening on http://localhost:3000/mcp
+   WebSocket server listening on ws://localhost:3001
+   ```
+
+### Step 5: Make ChatGPT Aware of the New Tool
+
+ChatGPT needs to reconnect to discover new tools. Choose one of these methods:
+
+**Option A: Refresh ChatGPT (Easiest)**
+- Simply refresh the ChatGPT page (`Cmd+R` on Mac, `Ctrl+R` on Windows/Linux)
+- ChatGPT will automatically reconnect and discover the new tool
+
+**Option B: Reconnect the MCP Server**
+1. In ChatGPT, go to **Settings** → **Personalization** → **Model Context Protocol**
+2. Find your `3d-cube-server` configuration
+3. Temporarily **disable** it, then **re-enable** it
+4. Or **remove** and **re-add** the server configuration
+
+**Option C: Wait for Auto-Refresh**
+- ChatGPT may periodically refresh its tool list automatically
+- If the tool doesn't appear immediately, use Option A or B
+
+### Step 6: Verify the Tool is Available
+
+After refreshing ChatGPT, verify the tool is available:
+
+1. **Ask ChatGPT directly**:
+   - "What tools are available from the 3d-cube-server?"
+   - ChatGPT should list all tools including your new one
+
+2. **Test the tool**:
+   - Try using the tool with a natural language request
+   - For example: "Use the [your tool name] tool to..."
+
+### Important Notes
+
+- **If using ngrok**: If your server is behind ngrok, you may need to restart ngrok after restarting the server to ensure a fresh connection
+- **Web app must be running**: Make sure your web app (`npm run dev`) is running so you can see the visual changes
+- **Tool discovery**: The MCP protocol exposes tools via the `tools/list` method, which ChatGPT calls during initialization. After refreshing, ChatGPT should automatically see all registered tools
+- **No code changes needed in ChatGPT**: Once the server exposes the tool and ChatGPT reconnects, it will automatically be available - no ChatGPT configuration changes needed
+
+### Example: Adding the `change_background_color` Tool
+
+As a reference, here's how the `change_background_color` tool was added:
+
+1. **Server registration** (`server.js`):
+   ```javascript
+   mcpServer.registerTool('change_background_color', {...});
+   ```
+
+2. **Client handler** (`src/Application.js`):
+   ```javascript
+   case 'changeBackgroundColor':
+     this.sceneManager.changeBackgroundColor(command.color);
+     break;
+   ```
+
+3. **SceneManager method** (`src/SceneManager.js`):
+   ```javascript
+   changeBackgroundColor(color) {
+     const hexColor = parseInt(color.replace('#', ''), 16);
+     this.scene.background = new THREE.Color(hexColor);
+   }
+   ```
+
+4. **README documentation**: Added tool documentation in the "Available MCP Tools" section
+
+5. **Server restarted**: Restarted the MCP server to load the new tool
+
+6. **ChatGPT refreshed**: Refreshed ChatGPT to discover the new tool
+
 ## Using the MCP Server in Cursor
 
 ### Prerequisites
@@ -312,7 +490,7 @@ This would make the cube 1.5x wider, keep the height the same, and make it 2x de
 
 3. **Verify the connection** in Cursor:
    - The MCP server should show as connected in Cursor's MCP settings
-   - You should see the three tools available: `change_cube_color`, `change_cube_size`, and `scale_cube`
+   - You should see the four tools available: `change_cube_color`, `change_cube_size`, `scale_cube`, and `change_background_color`
 
 ### How to Use
 
@@ -333,9 +511,15 @@ Simply **ask Cursor's AI assistant** to manipulate the cube using natural langua
 - "Make the cube tall and thin"
 - "Scale the cube to be 2x wider, 1x tall, and 1.5x deep"
 
+**Change the background color:**
+- "Change the background to black"
+- "Make the background white"
+- "Set the background color to #0000ff"
+
 **Combined requests:**
 - "Change the cube to purple and make it twice as large"
 - "Make a red cube that's tall and thin"
+- "Change the cube to blue and set the background to black"
 
 The AI will automatically call the appropriate MCP tools, and you'll see the changes happen in real-time in your browser!
 
@@ -382,6 +566,35 @@ The AI will call:
 {
   "name": "scale_cube",
   "arguments": { "x": 0.5, "y": 3.0, "z": 0.5 }
+}
+```
+
+### Example 5: Change Background Color
+Ask Cursor: *"Change the background to black"*
+
+The AI will call:
+```json
+{
+  "name": "change_background_color",
+  "arguments": { "color": "#000000" }
+}
+```
+
+### Example 6: Combined Request
+Ask Cursor: *"Change the cube to blue and set the background to white"*
+
+The AI will call:
+```json
+{
+  "name": "change_cube_color",
+  "arguments": { "color": "#0000ff" }
+}
+```
+and
+```json
+{
+  "name": "change_background_color",
+  "arguments": { "color": "#ffffff" }
 }
 ```
 

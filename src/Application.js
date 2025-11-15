@@ -111,6 +111,9 @@ export class Application {
       case 'scaleCube':
         this.sceneManager.scaleCube(command.x, command.y, command.z);
         break;
+      case 'changeBackgroundColor':
+        this.sceneManager.changeBackgroundColor(command.color);
+        break;
       default:
         console.warn('Unknown command type:', command.type);
     }

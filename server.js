@@ -143,6 +143,33 @@ mcpServer.registerTool(
   }
 );
 
+// Register tool: change_background_color
+mcpServer.registerTool(
+  'change_background_color',
+  {
+    title: 'Change Background Color',
+    description: 'Change the background color of the 3D scene',
+    inputSchema: {
+      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).describe('Hex color code (e.g., "#000000" for black, "#ffffff" for white)')
+    }
+  },
+  async ({ color }) => {
+    broadcastToClients({
+      type: 'changeBackgroundColor',
+      color: color
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Background color changed to ${color}`
+        }
+      ]
+    };
+  }
+);
+
 // Set up Express HTTP server for MCP transport
 const app = express();
 app.use(express.json());

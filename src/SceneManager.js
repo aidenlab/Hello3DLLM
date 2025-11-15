@@ -108,5 +108,14 @@ export class SceneManager {
   scaleCube(x, y, z) {
     this.cube.getMesh().scale.set(x, y, z);
   }
+
+  /**
+   * Changes the background color of the scene
+   * @param {string} color - Hex color string (e.g., "#000000")
+   */
+  changeBackgroundColor(color) {
+    const hexColor = parseInt(color.replace('#', ''), 16);
+    this.scene.background = new THREE.Color(hexColor);
+  }
 }
 
