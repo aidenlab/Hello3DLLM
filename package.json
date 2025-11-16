@@ -1,7 +1,7 @@
 {
   "name": "hello3dllm",
   "version": "0.0.0",
-  "description": "A 3D interactive cube visualization built with Three.js, enhanced with Model Context Protocol (MCP) server capabilities",
+  "description": "3D interactive app extended with Model Context Protocol (MCP) server capabilities",
   "type": "module",
   "private": true,
   "engines": {
