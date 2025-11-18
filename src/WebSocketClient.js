@@ -1,15 +1,31 @@
 /**
  * WebSocket client for communicating with the MCP server
  * Handles connection to the WebSocket server and processes incoming commands
+ * Automatically detects if server is not running and polls for availability
  */
 export class WebSocketClient {
-  constructor(onCommand) {
+  constructor(onCommand, onStatusChange = null) {
     this.ws = null;
     this.onCommand = onCommand;
+    this.onStatusChange = onStatusChange;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 1000;
     this.isConnecting = false;
+    this.serverAvailable = false; // Track if we've ever successfully connected
+    this.pollingMode = false; // True when server appears to be offline
+    this.pollingInterval = null;
+    this.pollingDelay = 5000; // Check every 5 seconds when server is offline
+    this.initialConnectionAttempts = 0;
+    this.maxInitialAttempts = 3; // Try 3 times quickly before assuming server is offline
+    this.initialAttemptDelay = 500; // 500ms between initial attempts
+    this._notifyStatusChange(false); // Initial status: disconnected
+  }
+
+  _notifyStatusChange(connected) {
+    if (this.onStatusChange) {
+      this.onStatusChange(connected);
+    }
   }
 
   connect(url = null) {
@@ -20,7 +36,13 @@ export class WebSocketClient {
     }
 
     this.isConnecting = true;
-    console.log(`Connecting to WebSocket server at ${wsUrl}...`);
+    
+    // If we're in polling mode, log differently
+    if (this.pollingMode) {
+      console.log(`Checking if WebSocket server is available at ${wsUrl}...`);
+    } else {
+      console.log(`Connecting to WebSocket server at ${wsUrl}...`);
+    }
 
     try {
       this.ws = new WebSocket(wsUrl);
@@ -29,6 +51,17 @@ export class WebSocketClient {
         console.log('WebSocket connected');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
+        this.serverAvailable = true;
+        this.pollingMode = false;
+        this.initialConnectionAttempts = 0;
+        
+        // Clear any polling interval since we're connected
+        if (this.pollingInterval) {
+          clearInterval(this.pollingInterval);
+          this.pollingInterval = null;
+        }
+        
+        this._notifyStatusChange(true);
       };
 
       this.ws.onmessage = (event) => {
@@ -45,25 +78,77 @@ export class WebSocketClient {
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        // Don't log errors in polling mode to reduce noise
+        if (!this.pollingMode) {
+          console.error('WebSocket error:', error);
+        }
         this.isConnecting = false;
       };
 
-      this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      this.ws.onclose = (event) => {
         this.isConnecting = false;
-        this._attemptReconnect(wsUrl);
+        this._notifyStatusChange(false);
+        
+        // If we were previously connected, attempt normal reconnection
+        if (this.serverAvailable) {
+          console.log('WebSocket disconnected (was connected), attempting to reconnect...');
+          this._attemptReconnect(wsUrl);
+        } else {
+          // Server was never connected, check if we should enter polling mode
+          this._handleInitialConnectionFailure(wsUrl, event);
+        }
       };
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);
       this.isConnecting = false;
-      this._attemptReconnect(wsUrl);
+      this._handleInitialConnectionFailure(wsUrl, null);
     }
   }
 
+  _handleInitialConnectionFailure(url, closeEvent) {
+    this.initialConnectionAttempts++;
+    
+    // If we've tried a few times quickly and failed, assume server is not running
+    if (this.initialConnectionAttempts >= this.maxInitialAttempts) {
+      if (!this.pollingMode) {
+        console.log('WebSocket server appears to be offline. Will check periodically for availability...');
+        this.pollingMode = true;
+        this._startPolling(url);
+      }
+    } else {
+      // Try a few more times quickly before giving up
+      setTimeout(() => {
+        this.connect(url);
+      }, this.initialAttemptDelay);
+    }
+  }
+
+  _startPolling(url) {
+    // Clear any existing polling interval
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+    
+    // Poll periodically to check if server becomes available
+    this.pollingInterval = setInterval(() => {
+      if (!this.isConnecting && !this.isConnected()) {
+        this.connect(url);
+      }
+    }, this.pollingDelay);
+  }
+
   _attemptReconnect(url) {
+    // If we're in polling mode, don't do aggressive reconnection
+    // The polling mechanism will handle it
+    if (this.pollingMode) {
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
+      console.log('Max reconnection attempts reached. Server may be offline. Entering polling mode...');
+      this.pollingMode = true;
+      this.serverAvailable = false;
+      this._startPolling(url);
       return;
     }
 
@@ -82,7 +167,17 @@ export class WebSocketClient {
       this.ws.close();
       this.ws = null;
     }
+    
+    // Clear polling interval
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+    
     this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnection
+    this.pollingMode = false;
+    this.serverAvailable = false;
+    this._notifyStatusChange(false);
   }
 
   isConnected() {

@@ -282,6 +282,19 @@ app.post('/mcp', async (req, res) => {
       return;
     }
 
+    // Detect tool calls and notify WebSocket clients
+    if (req.body?.method === 'tools/call' && req.body?.params?.name) {
+      const toolName = req.body.params.name;
+      console.log(`MCP tool called: ${toolName}`);
+      
+      // Send tool call notification to WebSocket clients
+      broadcastToClients({
+        type: 'toolCall',
+        toolName: toolName,
+        timestamp: Date.now()
+      });
+    }
+
     // Handle the POST request
     await transport.handleRequest(req, res, req.body);
   } catch (error) {

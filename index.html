@@ -7,7 +7,16 @@
     <title>Hello3DLLM</title>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <div class="container-fluid h-100 p-0">
+      <canvas id="canvas"></canvas>
+      <div id="ws-status" class="ws-status disconnected">
+        <div class="ws-status-indicator"></div>
+        <span class="ws-status-label">disconnected</span>
+      </div>
+      <div id="tool-notification" class="tool-notification hidden">
+        <span class="tool-notification-label"></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
