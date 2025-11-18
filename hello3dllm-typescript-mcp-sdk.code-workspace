@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"name": "Hello3DLLM",
+			"path": "."
+		},
+		{
+			"name": "typescript-sdk",
+			"path": "../typescript-sdk"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/dist": true
+		}
+	}
+}
+

@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"name": "Hello3DLLM",
+			"path": "."
+		},
+		{
+			"name": "IOSStuff (EIArcball.swift)",
+			"path": "../IOSStuff"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true,
+			"**/dist": true
+		},
+		"files.associations": {
+			"EIArcball.swift": "swift"
+		}
+	}
+}
+
