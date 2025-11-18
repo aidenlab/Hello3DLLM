@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"name": "Hello3DLLM",
+			"path": "."
+		},
+		{
+			"name": "three.js",
+			"path": "/Users/turner/ThreeJSDevelopment/three.js"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true
+		}
+	}
+}
+

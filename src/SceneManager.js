@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from './constants.js';
-import { Cube } from './Cube.js';
+import { Model } from './Model.js';
 import { Spotlight } from './Spotlight.js';
 
 /**
@@ -12,15 +12,13 @@ export class SceneManager {
     this.camera = camera;
     this.scene = null;
     this.renderer = null;
-    this.cube = null;
-    
-    this._initialize();
+    this.model = null;
   }
 
-  _initialize() {
+  async initialize() {
     this._createScene();
     this._createRenderer();
-    this._createCube();
+    await this._createModel();
     this._createLights();
   }
 
@@ -33,9 +31,10 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  _createCube() {
-    this.cube = new Cube();
-    this.scene.add(this.cube.getMesh());
+  async _createModel() {
+    this.model = new Model();
+    await this.model.load();
+    this.scene.add(this.model.getMesh());
   }
 
   _createLights() {
@@ -60,53 +59,44 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  getCube() {
-    return this.cube.getMesh();
+  getModel() {
+    return this.model.getMesh();
   }
 
   /**
-   * Gets the cube instance for full manipulation access
-   * @returns {Cube} The cube instance
+   * Gets the model instance for full manipulation access
+   * @returns {Model} The model instance
    */
-  getCubeInstance() {
-    return this.cube;
+  getModelInstance() {
+    return this.model;
   }
 
   /**
-   * Changes the color of the cube
+   * Changes the color of the model
    * @param {string} color - Hex color string (e.g., "#ff0000")
    */
-  changeCubeColor(color) {
+  changeModelColor(color) {
     const hexColor = parseInt(color.replace('#', ''), 16);
-    this.cube.getMaterial().color.setHex(hexColor);
+    this.model.getMaterial().color.setHex(hexColor);
   }
 
   /**
-   * Changes the uniform size of the cube by recreating the geometry
-   * @param {number} size - New size value
+   * Changes the uniform size of the model by scaling
+   * @param {number} size - New size value (scale factor)
    */
-  changeCubeSize(size) {
-    // Dispose old geometry
-    this.cube.getGeometry().dispose();
-    
-    // Create new geometry with new size
-    const newGeometry = new THREE.BoxGeometry(size, size, size);
-    newGeometry.computeVertexNormals();
-    newGeometry.normalizeNormals();
-    
-    // Replace geometry
-    this.cube.mesh.geometry = newGeometry;
-    this.cube.geometry = newGeometry;
+  changeModelSize(size) {
+    // Use uniform scale instead of geometry recreation for GLTF models
+    this.model.getMesh().scale.set(size, size, size);
   }
 
   /**
-   * Scales the cube independently in each dimension
+   * Scales the model independently in each dimension
    * @param {number} x - Scale factor for X axis
    * @param {number} y - Scale factor for Y axis
    * @param {number} z - Scale factor for Z axis
    */
-  scaleCube(x, y, z) {
-    this.cube.getMesh().scale.set(x, y, z);
+  scaleModel(x, y, z) {
+    this.model.getMesh().scale.set(x, y, z);
   }
 
   /**

@@ -1,11 +1,11 @@
-# Hello3DLLM - 3D Cube Visualization with MCP Server
+# Hello3DLLM - 3D Model Visualization with MCP Server
 
-A 3D interactive cube visualization built with Three.js, enhanced with Model Context Protocol (MCP) server capabilities that allow AI assistants and other MCP clients to manipulate the cube in real-time.
+A 3D interactive model visualization built with Three.js, enhanced with Model Context Protocol (MCP) server capabilities that allow AI assistants and other MCP clients to manipulate the 3D model in real-time.
 
 ## Features
 
-- **Interactive 3D Cube**: Rotate with mouse/touch, zoom with mouse wheel/pinch
-- **MCP Server Integration**: Control the cube remotely via MCP tools
+- **Interactive 3D Model**: Rotate with mouse/touch, zoom with mouse wheel/pinch
+- **MCP Server Integration**: Control the model remotely via MCP tools
 - **Real-time Updates**: Changes made through MCP tools are instantly visible in the browser
 - **WebSocket Communication**: Bidirectional communication between MCP server and browser app
 
@@ -47,7 +47,7 @@ These clients work with `localhost`, so no additional setup is needed.
 
 **Option 1: Deeplink (macOS)**
 ```bash
-open 'cursor://anysphere.cursor-deeplink/mcp/install?name=3d-cube-server&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjMwMDAvbWNwIn0='
+open 'cursor://anysphere.cursor-deeplink/mcp/install?name=3d-model-server&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjMwMDAvbWNwIn0='
 ```
 
 **Option 2: Manual Configuration**
@@ -56,7 +56,7 @@ open 'cursor://anysphere.cursor-deeplink/mcp/install?name=3d-cube-server&config=
    ```json
    {
      "mcpServers": {
-       "3d-cube-server": {
+       "3d-model-server": {
          "url": "http://localhost:3000/mcp"
        }
      }
@@ -68,7 +68,7 @@ open 'cursor://anysphere.cursor-deeplink/mcp/install?name=3d-cube-server&config=
 Add to your MCP configuration:
 ```json
 {
-  "name": "3d-cube-server",
+  "name": "3d-model-server",
   "type": "http",
   "url": "http://localhost:3000/mcp"
 }
@@ -77,7 +77,7 @@ Add to your MCP configuration:
 #### Claude Code
 
 ```bash
-claude mcp add --transport http 3d-cube-server http://localhost:3000/mcp
+claude mcp add --transport http 3d-model-server http://localhost:3000/mcp
 ```
 
 #### MCP Inspector
@@ -94,21 +94,21 @@ ChatGPT requires a publicly accessible server. See [ChatGPT Setup](#chatgpt-setu
 
 ## Using the MCP Tools
 
-Once connected, ask your AI assistant to manipulate the cube using natural language:
+Once connected, ask your AI assistant to manipulate the model using natural language:
 
-- **Change color**: "Change the cube to red" or "Make it blue"
-- **Change size**: "Make the cube bigger" or "Set size to 2.5"
+- **Change color**: "Change the model to red" or "Make it blue"
+- **Change size**: "Make the model bigger" or "Set size to 2.5"
 - **Scale**: "Stretch horizontally" or "Make it tall and thin"
 - **Background**: "Change background to black"
-- **Combined**: "Make a red cube that's tall and thin"
+- **Combined**: "Make a red model that's tall and thin"
 
 The AI will automatically call the appropriate MCP tools, and changes appear in real-time in your browser.
 
 ## Available MCP Tools
 
-### `change_cube_color`
+### `change_model_color`
 
-Changes the color of the cube.
+Changes the color of the 3D model.
 
 **Parameters:**
 - `color` (string): Hex color code (e.g., `#ff0000` for red)
@@ -116,31 +116,31 @@ Changes the color of the cube.
 **Example:**
 ```json
 {
-  "name": "change_cube_color",
+  "name": "change_model_color",
   "arguments": { "color": "#ff0000" }
 }
 ```
 
-### `change_cube_size`
+### `change_model_size`
 
-Changes the uniform size of the cube by recreating its geometry.
+Changes the uniform size of the model by scaling.
 
 **Parameters:**
-- `size` (number): New size value (must be positive)
+- `size` (number): New size value (must be positive, scale factor)
 
-**Note:** This recreates the cube geometry, so it resets to default position and rotation.
+**Note:** This scales the model uniformly, preserving its shape and position.
 
 **Example:**
 ```json
 {
-  "name": "change_cube_size",
+  "name": "change_model_size",
   "arguments": { "size": 2.0 }
 }
 ```
 
-### `scale_cube`
+### `scale_model`
 
-Scales the cube independently in each dimension (x, y, z axes).
+Scales the model independently in each dimension (x, y, z axes).
 
 **Parameters:**
 - `x` (number): Scale factor for X axis (must be positive)
@@ -150,7 +150,7 @@ Scales the cube independently in each dimension (x, y, z axes).
 **Example:**
 ```json
 {
-  "name": "scale_cube",
+  "name": "scale_model",
   "arguments": { "x": 1.5, "y": 1.0, "z": 2.0 }
 }
 ```
@@ -193,7 +193,7 @@ Changes the background color of the 3D scene.
 4. **Configure ChatGPT:**
    - Open ChatGPT → Settings → Personalization → Model Context Protocol
    - Add server:
-     - **Name**: `3d-cube-server`
+     - **Name**: `3d-model-server`
      - **URL**: `https://your-ngrok-url.ngrok-free.app/mcp` ⚠️ **Include `/mcp` at the end!**
      - **Transport**: HTTP or Streamable HTTP
 
@@ -257,7 +257,7 @@ cors({
 3. **Configure ChatGPT:**
    - Open ChatGPT → Settings → Personalization → Model Context Protocol
    - Add server:
-     - **Name**: `3d-cube-server`
+     - **Name**: `3d-model-server`
      - **URL**: `https://your-mcp-ngrok-url.ngrok-free.app/mcp` ⚠️ **Include `/mcp` at the end!**
      - **Transport**: HTTP or Streamable HTTP
 
@@ -452,7 +452,7 @@ Deploy both front-end and backend together on a single platform:
 
 3. **Test End-to-End:**
    - Connect an MCP client (ChatGPT, Cursor, etc.) to your deployed MCP endpoint
-   - Make a tool call (e.g., "change cube color to red")
+   - Make a tool call (e.g., "change model color to red")
    - Verify changes appear in the browser
 
 ### Troubleshooting Production Issues
@@ -494,13 +494,13 @@ Deploy both front-end and backend together on a single platform:
                                       │                       │
                                       │              ┌────────▼────────┐
                                       └──────────────▶│  SceneManager   │
-                                                     │  (Cube Control)  │
+                                                     │  (Model Control) │
                                                      └─────────────────┘
 ```
 
 1. **MCP Client** sends tool call requests to the MCP Server
 2. **MCP Server** processes the request and broadcasts commands via WebSocket
-3. **Browser App** receives WebSocket messages and updates the cube
+3. **Browser App** receives WebSocket messages and updates the model
 4. Changes are immediately visible in the 3D scene
 
 ## Project Structure
@@ -510,9 +510,9 @@ Hello3DLLM/
 ├── server.js                 # MCP server with WebSocket bridge
 ├── src/
 │   ├── Application.js         # Main app with WebSocket integration
-│   ├── SceneManager.js        # Scene management with cube manipulation methods
+│   ├── SceneManager.js        # Scene management with model manipulation methods
 │   ├── WebSocketClient.js    # WebSocket client for browser
-│   ├── Cube.js                # Cube class definition
+│   ├── Model.js               # Model class definition
 │   ├── CameraController.js    # Camera controls
 │   ├── RotationController.js  # Rotation handling
 │   └── main.js                # Entry point
@@ -606,7 +606,7 @@ See the `change_background_color` tool implementation in the codebase for a comp
 - Check endpoint URL: `http://localhost:3000/mcp`
 - Ensure no firewall is blocking the connection
 
-### Cube Not Updating
+### Model Not Updating
 
 - Check browser console for WebSocket errors
 - Verify browser app is running and connected
