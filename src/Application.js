@@ -122,6 +122,9 @@ export class Application {
 
   _handleWebSocketCommand(command) {
     switch (command.type) {
+      case 'toolCall':
+        this._showToolNotification(command.toolName);
+        break;
       case 'changeColor':
         this.sceneManager.changeCubeColor(command.color);
         break;
@@ -137,6 +140,36 @@ export class Application {
       default:
         console.warn('Unknown command type:', command.type);
     }
+  }
+
+  _showToolNotification(toolName) {
+    // Format tool name for display (convert snake_case to Title Case)
+    const formattedName = toolName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    const notificationElement = document.getElementById('tool-notification');
+    const labelElement = notificationElement.querySelector('.tool-notification-label');
+    
+    // Clear any existing timeout
+    if (this._toolNotificationTimeout) {
+      clearTimeout(this._toolNotificationTimeout);
+      this._toolNotificationTimeout = null;
+    }
+    
+    labelElement.textContent = formattedName;
+    
+    // Show notification with animation
+    notificationElement.classList.remove('hidden');
+    notificationElement.classList.add('visible');
+    
+    // Hide after 3 seconds
+    this._toolNotificationTimeout = setTimeout(() => {
+      notificationElement.classList.remove('visible');
+      notificationElement.classList.add('hidden');
+      this._toolNotificationTimeout = null;
+    }, 3000);
   }
 
   _startAnimation() {
