@@ -9,9 +9,43 @@ import { z } from 'zod';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { appleCrayonColorsHexStrings } from './src/utils/color/color.js';
 
 const MCP_PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
 const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 3001;
+
+/**
+ * Converts a color input (hex code or Apple crayon color name) to a hex code
+ * @param {string} colorInput - Either a hex code (e.g., "#ff0000") or an Apple crayon color name (e.g., "maraschino")
+ * @returns {string|null} Hex color code or null if invalid
+ */
+function normalizeColorToHex(colorInput) {
+  if (!colorInput || typeof colorInput !== 'string') {
+    return null;
+  }
+  
+  // Check if it's already a hex code
+  if (/^#[0-9A-Fa-f]{6}$/.test(colorInput)) {
+    return colorInput.toLowerCase();
+  }
+  
+  // Normalize the input: lowercase, trim, and handle variations
+  let normalizedName = colorInput.toLowerCase().trim();
+  
+  // Handle "sea foam" variations (with space, without space, with hyphen)
+  if (normalizedName === 'seafoam' || normalizedName === 'sea-foam') {
+    normalizedName = 'sea foam';
+  }
+  
+  // Try to find it as an Apple crayon color name
+  const hexColor = appleCrayonColorsHexStrings.get(normalizedName);
+  
+  if (hexColor) {
+    return hexColor.toLowerCase();
+  }
+  
+  return null;
+}
 
 // Store connected WebSocket clients
 const wsClients = new Set();
@@ -61,6 +95,29 @@ const mcpServer = new McpServer({
   version: '1.0.0'
 });
 
+// Create a list of available Apple crayon color names for the description
+const availableColorNames = Array.from(appleCrayonColorsHexStrings.keys()).join(', ');
+
+// Zod schema for color input - accepts hex codes or Apple crayon color names
+const colorSchema = z.string().refine(
+  (val) => {
+    // Accept hex codes
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      return true;
+    }
+    // Accept Apple crayon color names (case-insensitive)
+    let normalizedName = val.toLowerCase().trim();
+    // Handle "sea foam" variations
+    if (normalizedName === 'seafoam' || normalizedName === 'sea-foam') {
+      normalizedName = 'sea foam';
+    }
+    return appleCrayonColorsHexStrings.has(normalizedName);
+  },
+  {
+    message: `Must be a hex color code (e.g., "#ff0000") or an Apple crayon color name. Available colors: ${availableColorNames}`
+  }
+).describe(`Hex color code (e.g., "#ff0000") or Apple crayon color name (e.g., "maraschino", "turquoise", "lemon"). Available colors: ${availableColorNames}`);
+
 // Register tool: change_model_color
 mcpServer.registerTool(
   'change_model_color',
@@ -68,20 +125,34 @@ mcpServer.registerTool(
     title: 'Change Model Color',
     description: 'Change the color of the 3D model in the scene',
     inputSchema: {
-      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).describe('Hex color code (e.g., "#ff0000" for red)')
+      color: colorSchema
     }
   },
   async ({ color }) => {
+    const hexColor = normalizeColorToHex(color);
+    if (!hexColor) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid color: ${color}. Please use a hex code (e.g., "#ff0000") or an Apple crayon color name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
     broadcastToClients({
       type: 'changeColor',
-      color: color
+      color: hexColor
     });
 
+    const displayName = /^#[0-9A-Fa-f]{6}$/.test(color) ? hexColor : `${color} (${hexColor})`;
     return {
       content: [
         {
           type: 'text',
-          text: `Model color changed to ${color}`
+          text: `Model color changed to ${displayName}`
         }
       ]
     };
@@ -153,20 +224,284 @@ mcpServer.registerTool(
     title: 'Change Background Color',
     description: 'Change the background color of the 3D scene',
     inputSchema: {
-      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).describe('Hex color code (e.g., "#000000" for black, "#ffffff" for white)')
+      color: colorSchema
     }
   },
   async ({ color }) => {
+    const hexColor = normalizeColorToHex(color);
+    if (!hexColor) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid color: ${color}. Please use a hex code (e.g., "#000000") or an Apple crayon color name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
     broadcastToClients({
       type: 'changeBackgroundColor',
-      color: color
+      color: hexColor
+    });
+
+    const displayName = /^#[0-9A-Fa-f]{6}$/.test(color) ? hexColor : `${color} (${hexColor})`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Background color changed to ${displayName}`
+        }
+      ]
+    };
+  }
+);
+
+// Key light control tools
+mcpServer.registerTool(
+  'set_key_light_intensity',
+  {
+    title: 'Set Key Light Intensity',
+    description: 'Set the intensity of the key light (main light source)',
+    inputSchema: {
+      intensity: z.number().nonnegative().describe('Light intensity value (0.0 or higher)')
+    }
+  },
+  async ({ intensity }) => {
+    broadcastToClients({
+      type: 'setKeyLightIntensity',
+      intensity: intensity
     });
 
     return {
       content: [
         {
           type: 'text',
-          text: `Background color changed to ${color}`
+          text: `Key light intensity set to ${intensity}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_key_light_position',
+  {
+    title: 'Set Key Light Position',
+    description: 'Set the position of the key light in 3D space',
+    inputSchema: {
+      x: z.number().describe('X coordinate'),
+      y: z.number().describe('Y coordinate'),
+      z: z.number().describe('Z coordinate')
+    }
+  },
+  async ({ x, y, z }) => {
+    broadcastToClients({
+      type: 'setKeyLightPosition',
+      x: x,
+      y: y,
+      z: z
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light position set to (${x}, ${y}, ${z})`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_key_light_color',
+  {
+    title: 'Set Key Light Color',
+    description: 'Set the color of the key light',
+    inputSchema: {
+      color: colorSchema
+    }
+  },
+  async ({ color }) => {
+    const hexColor = normalizeColorToHex(color);
+    if (!hexColor) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid color: ${color}. Please use a hex code (e.g., "#ffffff") or an Apple crayon color name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    broadcastToClients({
+      type: 'setKeyLightColor',
+      color: hexColor
+    });
+
+    const displayName = /^#[0-9A-Fa-f]{6}$/.test(color) ? hexColor : `${color} (${hexColor})`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light color changed to ${displayName}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_key_light_size',
+  {
+    title: 'Set Key Light Size',
+    description: 'Set the width and height of the key light area',
+    inputSchema: {
+      width: z.number().positive().describe('Width of the light area'),
+      height: z.number().positive().describe('Height of the light area')
+    }
+  },
+  async ({ width, height }) => {
+    broadcastToClients({
+      type: 'setKeyLightSize',
+      width: width,
+      height: height
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light size set to ${width} x ${height}`
+        }
+      ]
+    };
+  }
+);
+
+// Fill light control tools
+mcpServer.registerTool(
+  'set_fill_light_intensity',
+  {
+    title: 'Set Fill Light Intensity',
+    description: 'Set the intensity of the fill light (shadow-filling light)',
+    inputSchema: {
+      intensity: z.number().nonnegative().describe('Light intensity value (0.0 or higher)')
+    }
+  },
+  async ({ intensity }) => {
+    broadcastToClients({
+      type: 'setFillLightIntensity',
+      intensity: intensity
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light intensity set to ${intensity}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_position',
+  {
+    title: 'Set Fill Light Position',
+    description: 'Set the position of the fill light in 3D space',
+    inputSchema: {
+      x: z.number().describe('X coordinate'),
+      y: z.number().describe('Y coordinate'),
+      z: z.number().describe('Z coordinate')
+    }
+  },
+  async ({ x, y, z }) => {
+    broadcastToClients({
+      type: 'setFillLightPosition',
+      x: x,
+      y: y,
+      z: z
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light position set to (${x}, ${y}, ${z})`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_color',
+  {
+    title: 'Set Fill Light Color',
+    description: 'Set the color of the fill light',
+    inputSchema: {
+      color: colorSchema
+    }
+  },
+  async ({ color }) => {
+    const hexColor = normalizeColorToHex(color);
+    if (!hexColor) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid color: ${color}. Please use a hex code (e.g., "#ffffff") or an Apple crayon color name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    broadcastToClients({
+      type: 'setFillLightColor',
+      color: hexColor
+    });
+
+    const displayName = /^#[0-9A-Fa-f]{6}$/.test(color) ? hexColor : `${color} (${hexColor})`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light color changed to ${displayName}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_size',
+  {
+    title: 'Set Fill Light Size',
+    description: 'Set the width and height of the fill light area',
+    inputSchema: {
+      width: z.number().positive().describe('Width of the light area'),
+      height: z.number().positive().describe('Height of the light area')
+    }
+  },
+  async ({ width, height }) => {
+    broadcastToClients({
+      type: 'setFillLightSize',
+      width: width,
+      height: height
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light size set to ${width} x ${height}`
         }
       ]
     };
