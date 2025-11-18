@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"name": "Hello3DLLM",
+			"path": "."
+		},
+		{
+			"name": "PanGenomeBrowser",
+			"path": "/Users/turner/PanGenomeProject/pgb"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/node_modules": true
+		}
+	}
+}
+

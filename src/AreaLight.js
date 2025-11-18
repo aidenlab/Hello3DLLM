@@ -15,29 +15,17 @@ export class AreaLight {
   }
 
   _createAreaLight() {
-    const config = this.type === 'key' 
-      ? CONFIG.LIGHTING.KEY_LIGHT 
-      : CONFIG.LIGHTING.FILL_LIGHT;
-    
-    this.areaLight = new THREE.RectAreaLight(
-      config.COLOR,
-      config.INTENSITY,
-      config.WIDTH,
-      config.HEIGHT
-    );
+    const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
+    const { COLOR, INTENSITY, WIDTH, HEIGHT } = config;
+    this.areaLight = new THREE.RectAreaLight(COLOR, INTENSITY, WIDTH, HEIGHT);
   }
 
   _configureAreaLight() {
-    const config = this.type === 'key' 
-      ? CONFIG.LIGHTING.KEY_LIGHT 
-      : CONFIG.LIGHTING.FILL_LIGHT;
-    
+    const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
+
     // Set position
-    this.areaLight.position.set(
-      config.POSITION.x,
-      config.POSITION.y,
-      config.POSITION.z
-    );
+    const {x, y, z} = config.POSITION;
+    this.areaLight.position.set(x, y, z);
 
     // Set rotation to point the light toward the target
     // RectAreaLight uses lookAt() method to orient toward a point
