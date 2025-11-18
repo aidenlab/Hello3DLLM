@@ -57,16 +57,16 @@ function broadcastToClients(command) {
 
 // Create MCP server
 const mcpServer = new McpServer({
-  name: '3d-cube-server',
+  name: '3d-model-server',
   version: '1.0.0'
 });
 
-// Register tool: change_cube_color
+// Register tool: change_model_color
 mcpServer.registerTool(
-  'change_cube_color',
+  'change_model_color',
   {
-    title: 'Change Cube Color',
-    description: 'Change the color of the cube in the 3D scene',
+    title: 'Change Model Color',
+    description: 'Change the color of the 3D model in the scene',
     inputSchema: {
       color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).describe('Hex color code (e.g., "#ff0000" for red)')
     }
@@ -81,19 +81,19 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: `Cube color changed to ${color}`
+          text: `Model color changed to ${color}`
         }
       ]
     };
   }
 );
 
-// Register tool: change_cube_size
+// Register tool: change_model_size
 mcpServer.registerTool(
-  'change_cube_size',
+  'change_model_size',
   {
-    title: 'Change Cube Size',
-    description: 'Change the uniform size of the cube',
+    title: 'Change Model Size',
+    description: 'Change the uniform size of the 3D model',
     inputSchema: {
       size: z.number().positive().describe('New size value (uniform scaling)')
     }
@@ -108,19 +108,19 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: `Cube size changed to ${size}`
+          text: `Model size changed to ${size}`
         }
       ]
     };
   }
 );
 
-// Register tool: scale_cube
+// Register tool: scale_model
 mcpServer.registerTool(
-  'scale_cube',
+  'scale_model',
   {
-    title: 'Scale Cube',
-    description: 'Scale the cube independently in each dimension (x, y, z)',
+    title: 'Scale Model',
+    description: 'Scale the 3D model independently in each dimension (x, y, z)',
     inputSchema: {
       x: z.number().positive().describe('Scale factor for X axis'),
       y: z.number().positive().describe('Scale factor for Y axis'),
@@ -139,7 +139,7 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: `Cube scaled to (${x}, ${y}, ${z})`
+          text: `Model scaled to (${x}, ${y}, ${z})`
         }
       ]
     };

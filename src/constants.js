@@ -13,8 +13,8 @@ export const CONFIG = {
     ZOOM_SPEED: 0.1,
   },
 
-  // Cube settings
-  CUBE: {
+  // Model settings
+  MODEL: {
     SIZE: 1,
     COLOR: 0x00ff00,
   },

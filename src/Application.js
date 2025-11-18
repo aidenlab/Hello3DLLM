@@ -7,11 +7,15 @@ import { WebSocketClient } from './WebSocketClient.js';
  * Main application class that orchestrates the 3D scene and user interactions
  */
 export class Application {
-  constructor(canvas) {
+  async init(canvas) {
     this.canvas = canvas;
     this.cameraController = new CameraController();
     this.sceneManager = new SceneManager(canvas, this.cameraController.getCamera());
-    this.rotationController = new RotationController(this.sceneManager.getCube(), canvas);
+    
+    // Initialize scene manager (loads model asynchronously)
+    await this.sceneManager.initialize();
+    
+    this.rotationController = new RotationController(this.sceneManager.getModel(), canvas);
     
     // Set up render callback for arcball
     this.rotationController.onRender = () => {
@@ -194,13 +198,13 @@ export class Application {
         this._showToolNotification(command.toolName);
         break;
       case 'changeColor':
-        this.sceneManager.changeCubeColor(command.color);
+        this.sceneManager.changeModelColor(command.color);
         break;
       case 'changeSize':
-        this.sceneManager.changeCubeSize(command.size);
+        this.sceneManager.changeModelSize(command.size);
         break;
       case 'scaleCube':
-        this.sceneManager.scaleCube(command.x, command.y, command.z);
+        this.sceneManager.scaleModel(command.x, command.y, command.z);
         break;
       case 'changeBackgroundColor':
         this.sceneManager.changeBackgroundColor(command.color);
