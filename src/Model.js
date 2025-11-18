@@ -19,34 +19,33 @@ export class Model {
    * @returns {Promise<void>}
    */
   async load() {
-    await this._loadModel();
+    await this._loadModel('/models/gltf/LeePerrySmith/LeePerrySmith.glb');
     this._createMaterial();
     this._createMesh();
   }
 
-  async _loadModel() {
-    return new Promise((resolve, reject) => {
-      this.loader.load(
-        '/models/gltf/LeePerrySmith/LeePerrySmith.glb',
-        (gltf) => {
-          // Extract geometry from the first child of the scene
-          this.geometry = gltf.scene.children[0].geometry;
-          resolve();
-        },
-        undefined,
-        (error) => {
-          console.error('Error loading model:', error);
-          reject(error);
-        }
-      );
+  async _loadModel(url) {
+
+      return new Promise((resolve, reject) => {
+
+          const onLoad = (gltf) => {
+              // Extract geometry from the first child of the scene
+              this.geometry = gltf.scene.children[0].geometry;
+              resolve();
+          }
+
+          const onError = (error) => {
+              console.error('Error loading model:', error);
+              reject(error);
+          }
+
+          this.loader.load(url, onLoad, undefined, onError);
     });
   }
 
   _createMaterial() {
     // Create a simple material that responds to lighting
-    this.material = new THREE.MeshStandardMaterial({
-      color: CONFIG.MODEL.COLOR,
-    });
+    this.material = new THREE.MeshStandardMaterial({ color: CONFIG.MODEL.COLOR });
   }
 
   _createMesh() {
