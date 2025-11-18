@@ -173,6 +173,228 @@ mcpServer.registerTool(
   }
 );
 
+// Key light control tools
+mcpServer.registerTool(
+  'set_key_light_intensity',
+  {
+    title: 'Set Key Light Intensity',
+    description: 'Set the intensity of the key light (main light source)',
+    inputSchema: {
+      intensity: z.number().nonnegative().describe('Light intensity value (0.0 or higher)')
+    }
+  },
+  async ({ intensity }) => {
+    broadcastToClients({
+      type: 'setKeyLightIntensity',
+      intensity: intensity
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light intensity set to ${intensity}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_key_light_position',
+  {
+    title: 'Set Key Light Position',
+    description: 'Set the position of the key light in 3D space',
+    inputSchema: {
+      x: z.number().describe('X coordinate'),
+      y: z.number().describe('Y coordinate'),
+      z: z.number().describe('Z coordinate')
+    }
+  },
+  async ({ x, y, z }) => {
+    broadcastToClients({
+      type: 'setKeyLightPosition',
+      x: x,
+      y: y,
+      z: z
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light position set to (${x}, ${y}, ${z})`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_key_light_color',
+  {
+    title: 'Set Key Light Color',
+    description: 'Set the color of the key light',
+    inputSchema: {
+      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).describe('Hex color code (e.g., "#ffffff" for white)')
+    }
+  },
+  async ({ color }) => {
+    broadcastToClients({
+      type: 'setKeyLightColor',
+      color: color
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light color changed to ${color}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_key_light_size',
+  {
+    title: 'Set Key Light Size',
+    description: 'Set the width and height of the key light area',
+    inputSchema: {
+      width: z.number().positive().describe('Width of the light area'),
+      height: z.number().positive().describe('Height of the light area')
+    }
+  },
+  async ({ width, height }) => {
+    broadcastToClients({
+      type: 'setKeyLightSize',
+      width: width,
+      height: height
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light size set to ${width} x ${height}`
+        }
+      ]
+    };
+  }
+);
+
+// Fill light control tools
+mcpServer.registerTool(
+  'set_fill_light_intensity',
+  {
+    title: 'Set Fill Light Intensity',
+    description: 'Set the intensity of the fill light (shadow-filling light)',
+    inputSchema: {
+      intensity: z.number().nonnegative().describe('Light intensity value (0.0 or higher)')
+    }
+  },
+  async ({ intensity }) => {
+    broadcastToClients({
+      type: 'setFillLightIntensity',
+      intensity: intensity
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light intensity set to ${intensity}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_position',
+  {
+    title: 'Set Fill Light Position',
+    description: 'Set the position of the fill light in 3D space',
+    inputSchema: {
+      x: z.number().describe('X coordinate'),
+      y: z.number().describe('Y coordinate'),
+      z: z.number().describe('Z coordinate')
+    }
+  },
+  async ({ x, y, z }) => {
+    broadcastToClients({
+      type: 'setFillLightPosition',
+      x: x,
+      y: y,
+      z: z
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light position set to (${x}, ${y}, ${z})`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_color',
+  {
+    title: 'Set Fill Light Color',
+    description: 'Set the color of the fill light',
+    inputSchema: {
+      color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).describe('Hex color code (e.g., "#ffffff" for white)')
+    }
+  },
+  async ({ color }) => {
+    broadcastToClients({
+      type: 'setFillLightColor',
+      color: color
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light color changed to ${color}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_size',
+  {
+    title: 'Set Fill Light Size',
+    description: 'Set the width and height of the fill light area',
+    inputSchema: {
+      width: z.number().positive().describe('Width of the light area'),
+      height: z.number().positive().describe('Height of the light area')
+    }
+  },
+  async ({ width, height }) => {
+    broadcastToClients({
+      type: 'setFillLightSize',
+      width: width,
+      height: height
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light size set to ${width} x ${height}`
+        }
+      ]
+    };
+  }
+);
+
 // Set up Express HTTP server for MCP transport
 const app = express();
 app.use(express.json());

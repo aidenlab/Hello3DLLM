@@ -209,6 +209,32 @@ export class Application {
       case 'changeBackgroundColor':
         this.sceneManager.changeBackgroundColor(command.color);
         break;
+      // Key light controls
+      case 'setKeyLightIntensity':
+        this.sceneManager.setKeyLightIntensity(command.intensity);
+        break;
+      case 'setKeyLightPosition':
+        this.sceneManager.setKeyLightPosition(command.x, command.y, command.z);
+        break;
+      case 'setKeyLightColor':
+        this.sceneManager.setKeyLightColor(command.color);
+        break;
+      case 'setKeyLightSize':
+        this.sceneManager.setKeyLightSize(command.width, command.height);
+        break;
+      // Fill light controls
+      case 'setFillLightIntensity':
+        this.sceneManager.setFillLightIntensity(command.intensity);
+        break;
+      case 'setFillLightPosition':
+        this.sceneManager.setFillLightPosition(command.x, command.y, command.z);
+        break;
+      case 'setFillLightColor':
+        this.sceneManager.setFillLightColor(command.color);
+        break;
+      case 'setFillLightSize':
+        this.sceneManager.setFillLightSize(command.width, command.height);
+        break;
       default:
         console.warn('Unknown command type:', command.type);
     }

@@ -23,16 +23,24 @@ export const CONFIG = {
   LIGHTING: {
     AMBIENT: {
       COLOR: 0xffffff,
-      INTENSITY: 0.2,
+      INTENSITY: 0.1,
     },
-    SPOTLIGHT: {
+    // Key light - main light source (brighter, positioned at ~45 degrees)
+    KEY_LIGHT: {
       COLOR: 0xffffff,
-      INTENSITY: 2.0,
-      POSITION: { x: 5, y: 5, z: 5 },
-      ANGLE: Math.PI / 4,
-      PENUMBRA: 0.3,
-      DECAY: 1,
-      DISTANCE: 20,
+      INTENSITY: 3.0,
+      WIDTH: 4,
+      HEIGHT: 6,
+      POSITION: { x: 5, y: 3, z: 5 },
+      TARGET: { x: 0, y: 0, z: 0 },
+    },
+    // Fill light - softer light to fill shadows (lower intensity, opposite side)
+    FILL_LIGHT: {
+      COLOR: 0xffffff,
+      INTENSITY: 0.2,
+      WIDTH: 4,
+      HEIGHT: 6,
+      POSITION: { x: -5, y: 2, z: 5 },
       TARGET: { x: 0, y: 0, z: 0 },
     },
   },

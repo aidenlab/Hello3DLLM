@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { CONFIG } from './constants.js';
 import { Model } from './Model.js';
-import { Spotlight } from './Spotlight.js';
+import { AreaLight } from './AreaLight.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
 
 /**
  * Manages the Three.js scene, renderer, lights, and objects
@@ -13,6 +15,8 @@ export class SceneManager {
     this.scene = null;
     this.renderer = null;
     this.model = null;
+    this.keyLight = null;
+    this.fillLight = null;
   }
 
   async initialize() {
@@ -29,6 +33,9 @@ export class SceneManager {
   _createRenderer() {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // Initialize RectAreaLight uniforms library (required for area lights)
+    RectAreaLightUniformsLib.init();
   }
 
   async _createModel() {
@@ -45,10 +52,19 @@ export class SceneManager {
     );
     this.scene.add(ambientLight);
 
-    // Spotlight for focused lighting
-    const spotlight = new Spotlight();
-    this.scene.add(spotlight.getLight());
-    this.scene.add(spotlight.getTarget());
+    // Key light - main light source
+    this.keyLight = new AreaLight('key');
+    this.scene.add(this.keyLight.getLight());
+    // Add helper to visualize the key light
+    const keyLightHelper = new RectAreaLightHelper(this.keyLight.getLight());
+    this.keyLight.getLight().add(keyLightHelper);
+
+    // Fill light - softer light to fill shadows
+    this.fillLight = new AreaLight('fill');
+    this.scene.add(this.fillLight.getLight());
+    // Add helper to visualize the fill light
+    const fillLightHelper = new RectAreaLightHelper(this.fillLight.getLight());
+    this.fillLight.getLight().add(fillLightHelper);
   }
 
   render(camera) {
@@ -106,6 +122,66 @@ export class SceneManager {
   changeBackgroundColor(color) {
     const hexColor = parseInt(color.replace('#', ''), 16);
     this.scene.background = new THREE.Color(hexColor);
+  }
+
+  // Key light control methods
+  setKeyLightIntensity(intensity) {
+    if (this.keyLight) {
+      this.keyLight.getLight().intensity = intensity;
+    }
+  }
+
+  setKeyLightPosition(x, y, z) {
+    if (this.keyLight) {
+      this.keyLight.getLight().position.set(x, y, z);
+      // Re-orient toward target
+      const target = CONFIG.LIGHTING.KEY_LIGHT.TARGET || { x: 0, y: 0, z: 0 };
+      this.keyLight.getLight().lookAt(target.x, target.y, target.z);
+    }
+  }
+
+  setKeyLightColor(color) {
+    if (this.keyLight) {
+      const hexColor = parseInt(color.replace('#', ''), 16);
+      this.keyLight.getLight().color.setHex(hexColor);
+    }
+  }
+
+  setKeyLightSize(width, height) {
+    if (this.keyLight) {
+      this.keyLight.getLight().width = width;
+      this.keyLight.getLight().height = height;
+    }
+  }
+
+  // Fill light control methods
+  setFillLightIntensity(intensity) {
+    if (this.fillLight) {
+      this.fillLight.getLight().intensity = intensity;
+    }
+  }
+
+  setFillLightPosition(x, y, z) {
+    if (this.fillLight) {
+      this.fillLight.getLight().position.set(x, y, z);
+      // Re-orient toward target
+      const target = CONFIG.LIGHTING.FILL_LIGHT.TARGET || { x: 0, y: 0, z: 0 };
+      this.fillLight.getLight().lookAt(target.x, target.y, target.z);
+    }
+  }
+
+  setFillLightColor(color) {
+    if (this.fillLight) {
+      const hexColor = parseInt(color.replace('#', ''), 16);
+      this.fillLight.getLight().color.setHex(hexColor);
+    }
+  }
+
+  setFillLightSize(width, height) {
+    if (this.fillLight) {
+      this.fillLight.getLight().width = width;
+      this.fillLight.getLight().height = height;
+    }
   }
 }
 
