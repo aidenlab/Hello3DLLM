@@ -11,7 +11,24 @@ export class Application {
     this.canvas = canvas;
     this.cameraController = new CameraController();
     this.sceneManager = new SceneManager(canvas, this.cameraController.getCamera());
-    this.rotationController = new RotationController(this.sceneManager.getCube());
+    this.rotationController = new RotationController(this.sceneManager.getCube(), canvas);
+    
+    // Set up render callback for arcball
+    this.rotationController.onRender = () => {
+      this.sceneManager.render(this.cameraController.getCamera());
+    };
+    
+    // Initialize arcball view bounds
+    const rect = this.canvas.getBoundingClientRect();
+    this.rotationController.reshape({
+      width: rect.width,
+      height: rect.height
+    });
+    
+    // Track mouse velocity for momentum
+    this.lastMousePosition = { x: 0, y: 0 };
+    this.lastMouseTime = 0;
+    this.mouseVelocity = { x: 0, y: 0 };
     
     this._setupWebSocket();
     this._setupEventListeners();
@@ -21,19 +38,48 @@ export class Application {
   _setupEventListeners() {
     // Mouse events for rotation
     this.canvas.addEventListener('mousedown', (e) => {
-      this.rotationController.startDrag(e.clientX, e.clientY);
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      this.lastMousePosition = { x: e.clientX, y: e.clientY };
+      this.lastMouseTime = Date.now();
+      this.mouseVelocity = { x: 0, y: 0 };
+      this.rotationController.beginDrag({ x, y });
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
-      this.rotationController.updateDrag(e.clientX, e.clientY);
+      if (this.rotationController.isCurrentlyDragging()) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Calculate velocity
+        const now = Date.now();
+        const dt = Math.max(1, now - this.lastMouseTime); // Avoid division by zero
+        this.mouseVelocity = {
+          x: (e.clientX - this.lastMousePosition.x) / dt * 16, // Normalize to ~60fps
+          y: (e.clientY - this.lastMousePosition.y) / dt * 16
+        };
+        this.lastMousePosition = { x: e.clientX, y: e.clientY };
+        this.lastMouseTime = now;
+        
+        this.rotationController.updateDrag({ x, y });
+      }
     });
 
-    this.canvas.addEventListener('mouseup', () => {
-      this.rotationController.stopDrag();
+    this.canvas.addEventListener('mouseup', (e) => {
+      if (this.rotationController.isCurrentlyDragging()) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        this.rotationController.endDrag(this.mouseVelocity, { x, y });
+      }
     });
 
     this.canvas.addEventListener('mouseleave', () => {
-      this.rotationController.stopDrag();
+      if (this.rotationController.isCurrentlyDragging()) {
+        this.rotationController.stopDrag();
+      }
     });
 
     // Mouse wheel for zoom
@@ -53,13 +99,29 @@ export class Application {
 
     this.canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
-      this.rotationController.stopDrag();
+      if (e.changedTouches.length === 1) {
+        const touch = e.changedTouches[0];
+        const rect = this.canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        // Use touch velocity if available, otherwise zero
+        const velocity = { x: 0, y: 0 }; // Touch events don't provide velocity directly
+        this.rotationController.endDrag(velocity, { x, y });
+      } else {
+        this.rotationController.stopDrag();
+      }
     });
 
     // Window resize
     window.addEventListener('resize', () => {
       this.cameraController.handleResize();
       this.sceneManager.handleResize();
+      // Update arcball view bounds
+      const rect = this.canvas.getBoundingClientRect();
+      this.rotationController.reshape({
+        width: rect.width,
+        height: rect.height
+      });
     });
   }
 
@@ -74,7 +136,10 @@ export class Application {
       // Single touch - enable rotation
       e.preventDefault();
       const touch = e.touches[0];
-      this.rotationController.startDrag(touch.clientX, touch.clientY);
+      const rect = this.canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      this.rotationController.beginDrag({ x, y });
     }
   }
 
@@ -89,7 +154,10 @@ export class Application {
       // Single touch rotation
       e.preventDefault();
       const touch = e.touches[0];
-      this.rotationController.updateDrag(touch.clientX, touch.clientY);
+      const rect = this.canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      this.rotationController.updateDrag({ x, y });
     }
   }
 
