@@ -94,10 +94,30 @@ export class Application {
   }
 
   _setupWebSocket() {
-    this.wsClient = new WebSocketClient((command) => {
-      this._handleWebSocketCommand(command);
-    });
+    this.wsClient = new WebSocketClient(
+      (command) => {
+        this._handleWebSocketCommand(command);
+      },
+      (connected) => {
+        this._updateConnectionStatus(connected);
+      }
+    );
     this.wsClient.connect();
+  }
+
+  _updateConnectionStatus(connected) {
+    const statusElement = document.getElementById('ws-status');
+    const labelElement = statusElement.querySelector('.ws-status-label');
+    
+    if (connected) {
+      statusElement.classList.remove('disconnected');
+      statusElement.classList.add('connected');
+      labelElement.textContent = 'connected';
+    } else {
+      statusElement.classList.remove('connected');
+      statusElement.classList.add('disconnected');
+      labelElement.textContent = 'disconnected';
+    }
   }
 
   _handleWebSocketCommand(command) {

@@ -4,9 +4,10 @@
  * Automatically detects if server is not running and polls for availability
  */
 export class WebSocketClient {
-  constructor(onCommand) {
+  constructor(onCommand, onStatusChange = null) {
     this.ws = null;
     this.onCommand = onCommand;
+    this.onStatusChange = onStatusChange;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 1000;
@@ -18,6 +19,13 @@ export class WebSocketClient {
     this.initialConnectionAttempts = 0;
     this.maxInitialAttempts = 3; // Try 3 times quickly before assuming server is offline
     this.initialAttemptDelay = 500; // 500ms between initial attempts
+    this._notifyStatusChange(false); // Initial status: disconnected
+  }
+
+  _notifyStatusChange(connected) {
+    if (this.onStatusChange) {
+      this.onStatusChange(connected);
+    }
   }
 
   connect(url = null) {
@@ -52,6 +60,8 @@ export class WebSocketClient {
           clearInterval(this.pollingInterval);
           this.pollingInterval = null;
         }
+        
+        this._notifyStatusChange(true);
       };
 
       this.ws.onmessage = (event) => {
@@ -77,6 +87,7 @@ export class WebSocketClient {
 
       this.ws.onclose = (event) => {
         this.isConnecting = false;
+        this._notifyStatusChange(false);
         
         // If we were previously connected, attempt normal reconnection
         if (this.serverAvailable) {
@@ -166,6 +177,7 @@ export class WebSocketClient {
     this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnection
     this.pollingMode = false;
     this.serverAvailable = false;
+    this._notifyStatusChange(false);
   }
 
   isConnected() {
