@@ -29,8 +29,32 @@ export class WebSocketClient {
   }
 
   connect(url = null) {
-    // Use environment variable or default to localhost for development
-    const wsUrl = url || import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+    // Determine WebSocket URL:
+    // 1. Explicit URL parameter (highest priority)
+    // 2. Environment variable VITE_WS_URL (for Netlify/production)
+    // 3. Auto-detect from current hostname (if same domain)
+    // 4. Default to localhost for development
+    let wsUrl = url;
+    
+    if (!wsUrl) {
+      wsUrl = import.meta.env.VITE_WS_URL;
+    }
+    
+    if (!wsUrl) {
+      // Auto-detect: if running on HTTPS, try wss:// on same domain
+      const isSecure = window.location.protocol === 'https:';
+      const protocol = isSecure ? 'wss:' : 'ws:';
+      const hostname = window.location.hostname;
+      
+      // Only auto-detect if not localhost (production deployment)
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        // Try WebSocket on same domain, port 3001
+        wsUrl = `${protocol}//${hostname}:3001`;
+      } else {
+        // Development: default to localhost
+        wsUrl = 'ws://localhost:3001';
+      }
+    }
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
       return;
     }

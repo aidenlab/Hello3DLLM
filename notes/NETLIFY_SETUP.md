@@ -1,0 +1,160 @@
+# Connecting Netlify Frontend to MCP Server
+
+This guide covers the configuration for hosting the 3D app on Netlify with a local MCP server.
+
+## Configuration
+
+**✅ Tested and working with ChatGPT**
+
+- **MCP Server**: Local (port 3000) + Tunneled for ChatGPT access
+- **WebSocket Server**: Local (port 3001) + Tunneled for Netlify app
+- **App**: Deployed to Netlify
+
+## Quick Setup Checklist
+
+- [ ] MCP server running locally
+- [ ] MCP HTTP tunnel active (port 3000)
+- [ ] WebSocket tunnel active (port 3001)
+- [ ] `VITE_WS_URL` set in Netlify environment variables
+- [ ] Netlify deployment completed
+
+## Setup Steps
+
+### Step 1: Start Your MCP Server
+
+```bash
+cd /Users/turner/MCPDevelopment/Hello3DLLM
+npm run mcp:server
+```
+
+The server will start on:
+- MCP endpoint: `http://localhost:3000/mcp`
+- WebSocket: `ws://localhost:3001`
+
+### Step 2: Create Tunnels
+
+You need **two tunnels** - one for MCP HTTP and one for WebSocket.
+
+#### Using ngrok:
+
+**Terminal 1 - MCP HTTP tunnel (for ChatGPT):**
+```bash
+ngrok http 3000
+```
+Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
+
+**Terminal 2 - WebSocket tunnel (for Netlify app):**
+```bash
+ngrok http 3001
+```
+Copy the HTTPS URL (e.g., `https://xyz789.ngrok-free.app`)
+
+⚠️ **Important**: Use `wss://` (not `ws://`) for WebSocket connections.
+
+#### Using localtunnel (Recommended for stable URLs):
+
+**Terminal 1 - MCP HTTP tunnel:**
+```bash
+npm install -g localtunnel
+lt --port 3000 --subdomain hello3dllm-mcpserver
+```
+Creates: `https://hello3dllm-mcpserver.loca.lt`
+
+**Terminal 2 - WebSocket tunnel:**
+```bash
+lt --port 3001 --subdomain hello3dllm-websocket
+```
+Creates: `https://hello3dllm-websocket.loca.lt`
+
+⚠️ **Important**: Use `wss://` protocol for WebSocket connections (e.g., `wss://hello3dllm-websocket.loca.lt`)
+
+**Benefits of localtunnel:**
+- ✅ Custom subdomains that remain consistent (as long as the subdomain is available)
+- ✅ No account required for basic usage
+- ✅ Simple command-line interface
+
+### Step 3: Configure Netlify
+
+1. Go to your Netlify site dashboard
+2. Navigate to **Site settings** → **Environment variables**
+3. Add a new variable:
+   - **Key**: `VITE_WS_URL`
+   - **Value**: 
+     - If using ngrok: `wss://your-websocket-ngrok-url.ngrok-free.app`
+     - If using localtunnel: `wss://hello3dllm-websocket.loca.lt`
+   - ⚠️ **Important**: Use `wss://` (not `ws://`) for secure WebSocket
+4. **Redeploy** your site (or trigger a new deployment)
+
+### Step 4: Configure MCP Client (Cursor/ChatGPT)
+
+Configure your MCP client with the tunneled MCP HTTP URL.
+
+**For Cursor:**
+Add to Cursor Settings → Features → Model Context Protocol:
+```json
+{
+  "mcpServers": {
+    "3d-model-server": {
+      "url": "https://your-mcp-tunnel-url.ngrok-free.app/mcp"
+    }
+  }
+}
+```
+
+**For ChatGPT:**
+1. Open ChatGPT → Settings → Personalization → Model Context Protocol
+2. Add server:
+   - **Name**: `3d-model-server`
+   - **URL**: `https://your-mcp-tunnel-url.ngrok-free.app/mcp` (include `/mcp`!)
+   - **Transport**: HTTP or Streamable HTTP
+
+## Testing the Connection
+
+1. **Open your Netlify site** in a browser
+2. **Open browser console** (F12)
+3. **Check for WebSocket connection logs**:
+   - Should see: `WebSocket connected`
+   - Status indicator should show "connected"
+
+4. **Test MCP connection**:
+   - In Cursor/ChatGPT, try: "Change the model color to red"
+   - The model in your Netlify app should change color
+
+## Important Notes
+
+- **Keep tunnels active**: Both tunnels must remain running. If either tunnel stops, the corresponding connection will fail.
+- **Tunnel URL stability**:
+  - **ngrok**: URLs change each time you restart ngrok on the free tier (unless you use a paid plan with a custom domain). You'll need to update Netlify env vars and ChatGPT config each time.
+  - **localtunnel**: Custom subdomains remain consistent as long as the subdomain is available and the tunnel stays active. This makes it easier to maintain stable URLs.
+- **Redeploy Netlify after URL changes**: When your tunnel WebSocket URL changes, you must update `VITE_WS_URL` in Netlify and trigger a new deployment for the change to take effect.
+
+## Troubleshooting
+
+### WebSocket Not Connecting
+
+- ✅ Verify `VITE_WS_URL` is set in Netlify environment variables
+- ✅ Check that you've redeployed after setting the variable
+- ✅ Ensure WebSocket URL uses `wss://` (not `ws://`) for HTTPS sites
+- ✅ Check browser console for connection errors
+- ✅ Verify your WebSocket tunnel is still active
+
+### MCP Client Can't Connect
+
+- ✅ Verify MCP endpoint URL includes `/mcp` at the end
+- ✅ Check that MCP server is running locally
+- ✅ Ensure MCP tunnel is still active
+- ✅ Check server logs for connection errors
+
+### Changes Not Appearing in Browser
+
+- ✅ Verify WebSocket connection is established (check browser console)
+- ✅ Ensure MCP server is broadcasting commands
+- ✅ Check that both tunnels are still active
+
+## Next Steps
+
+Once connected:
+- Try changing model colors: "Make the model purple"
+- Try changing size: "Make the model bigger"
+- Try changing background: "Change background to black"
+- Try lighting: "Set key light intensity to 3.0"

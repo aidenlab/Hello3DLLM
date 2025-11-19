@@ -174,6 +174,75 @@ Changes the background color of the 3D scene.
 
 **Important:** ChatGPT requires a publicly accessible server (not just `localhost`).
 
+### ✅ Tested Working Configurations
+
+The following configurations have been tested and confirmed working with ChatGPT:
+
+#### Configuration 1: MCP Server Tunnelled, WebSocket Local, App Local
+
+**Setup:**
+- ✅ MCP server running locally on port 3000
+- ✅ MCP server exposed via tunnel (ngrok/localtunnel) for ChatGPT access
+- ✅ WebSocket server running locally on port 3001 (no tunnel needed)
+- ✅ App running locally (`npm run dev`)
+
+**Steps:**
+1. Start MCP server: `npm run mcp:server`
+2. Create tunnel for MCP HTTP endpoint (port 3000):
+   ```bash
+   ngrok http 3000
+   # or
+   lt --port 3000 --subdomain hello3dllm-mcpserver
+   ```
+3. Start local app: `npm run dev`
+4. Configure ChatGPT with tunneled MCP URL: `https://your-tunnel-url/mcp`
+5. App connects to local WebSocket: `ws://localhost:3001`
+
+**Pros:**
+- ✅ Simple setup (only one tunnel needed)
+- ✅ Fast local WebSocket connection
+- ✅ Works with ChatGPT
+
+**Cons:**
+- ❌ App must run locally (not accessible to others)
+
+#### Configuration 2: MCP Server Tunnelled, WebSocket Tunnelled, App on Netlify
+
+**Setup:**
+- ✅ MCP server running locally on port 3000
+- ✅ MCP server exposed via tunnel for ChatGPT access
+- ✅ WebSocket server running locally on port 3001
+- ✅ WebSocket exposed via tunnel for Netlify app
+- ✅ App deployed to Netlify
+
+**Steps:**
+1. Start MCP server: `npm run mcp:server`
+2. Create tunnel for MCP HTTP endpoint (port 3000):
+   ```bash
+   ngrok http 3000
+   # or
+   lt --port 3000 --subdomain hello3dllm-mcpserver
+   ```
+3. Create tunnel for WebSocket (port 3001):
+   ```bash
+   ngrok http 3001
+   # or
+   lt --port 3001 --subdomain hello3dllm-websocket
+   ```
+4. Configure Netlify:
+   - Set `VITE_WS_URL` environment variable to tunneled WebSocket URL (e.g., `wss://your-websocket-tunnel-url`)
+   - Deploy app
+5. Configure ChatGPT with tunneled MCP URL: `https://your-mcp-tunnel-url/mcp`
+
+**Pros:**
+- ✅ App accessible to anyone via Netlify
+- ✅ Works with ChatGPT
+- ✅ No backend hosting costs
+
+**Cons:**
+- ❌ Requires two tunnels (both must stay active)
+- ❌ Local machine must be running 24/7
+
 ### Option A: Using ngrok (Recommended for Testing)
 
 1. **Install ngrok:**
@@ -201,8 +270,40 @@ Changes the background color of the 3D scene.
    ```bash
    npm run dev
    ```
+   **Note:** If running the app locally, you don't need to tunnel the WebSocket (port 3001). The app will connect to `ws://localhost:3001` directly. Only the MCP HTTP endpoint (port 3000) needs to be tunneled for ChatGPT access.
 
-### Option B: Deploy to Public Service
+### Option B: Using localtunnel (Alternative to ngrok)
+
+1. **Install localtunnel:**
+   ```bash
+   npm install -g localtunnel
+   ```
+
+2. **Start localtunnel** in a new terminal (keep MCP server running):
+   ```bash
+   lt --port 3000 --subdomain hello3dllm-mcpserver
+   ```
+   Creates URL: `https://hello3dllm-mcpserver.loca.lt`
+
+3. **Configure ChatGPT:**
+   - Open ChatGPT → Settings → Personalization → Model Context Protocol
+   - Add server:
+     - **Name**: `3d-model-server`
+     - **URL**: `https://hello3dllm-mcpserver.loca.lt/mcp` ⚠️ **Include `/mcp` at the end!**
+     - **Transport**: HTTP or Streamable HTTP
+
+4. **Start the web app** (optional but recommended):
+   ```bash
+   npm run dev
+   ```
+   **Note:** If running the app locally, you don't need to tunnel the WebSocket (port 3001). The app will connect to `ws://localhost:3001` directly. Only the MCP HTTP endpoint (port 3000) needs to be tunneled for ChatGPT access.
+
+**Benefits of localtunnel:**
+- ✅ Custom subdomains that remain consistent (as long as the subdomain is available)
+- ✅ No account required for basic usage
+- ✅ Simple command-line interface
+
+### Option C: Deploy to Public Service
 
 Deploy to Railway, Render, or Fly.io. Ensure:
 - Server runs on the service's assigned port (or use `PORT` env var)
@@ -228,7 +329,21 @@ cors({
 
 ### Hybrid Deployment: Front-End on Netlify + Local MCP Server
 
-**Yes, this scenario works!** You can host the front-end on Netlify while running the MCP server locally, using ngrok tunnels for external access.
+**✅ This configuration has been tested and works!** You can host the front-end on Netlify while running the MCP server locally, using tunnels for external access.
+
+**Architecture:**
+- MCP server runs locally (ports 3000 and 3001)
+- MCP HTTP endpoint exposed via tunnel (for ChatGPT access)
+- WebSocket exposed via tunnel (for Netlify app access)
+- Front-end deployed to Netlify
+
+**Why tunnels are needed:**
+
+1. **Netlify app → Local WebSocket**: The app at Netlify runs in the browser and needs to connect to your local WebSocket server. Since it can't access `localhost:3001` directly, you need a tunnel.
+
+2. **ChatGPT → Local MCP server**: ChatGPT runs in the cloud and cannot access `localhost:3000` on your desktop. It needs a publicly accessible URL via tunnel.
+
+**Solution**: Expose both ports using tunneling services (ngrok or localtunnel).
 
 **Setup Steps:**
 
@@ -238,7 +353,9 @@ cors({
    ```
    Server runs on `http://localhost:3000/mcp` (MCP) and `ws://localhost:3001` (WebSocket)
 
-2. **Create ngrok tunnels:**
+2. **Create tunnels using ngrok or localtunnel:**
+
+   **Option A: Using ngrok**
 
    **Terminal 1 - MCP HTTP tunnel (for ChatGPT):**
    ```bash
@@ -254,23 +371,64 @@ cors({
    
    ⚠️ **Important**: ngrok tunnels HTTP/HTTPS, and WebSocket connections work over these tunnels. Use the HTTPS URL with `wss://` protocol.
 
+   **Option B: Using localtunnel (Alternative)**
+
+   Install localtunnel:
+   ```bash
+   npm install -g localtunnel
+   ```
+
+   **Terminal 1 - MCP HTTP tunnel (for ChatGPT):**
+   ```bash
+   lt --port 3000 --subdomain hello3dllm-mcpserver
+   ```
+   Creates URL: `https://hello3dllm-mcpserver.loca.lt`
+
+   **Terminal 2 - WebSocket tunnel (for front-end):**
+   ```bash
+   lt --port 3001 --subdomain hello3dllm-websocket
+   ```
+   Creates URL: `https://hello3dllm-websocket.loca.lt`
+   
+   ⚠️ **Important**: Use `wss://` protocol for WebSocket connections (e.g., `wss://hello3dllm-websocket.loca.lt`)
+
+   **Benefits of localtunnel:**
+   - ✅ Custom subdomains that remain consistent (as long as the subdomain is available)
+   - ✅ No account required for basic usage
+   - ✅ Simple command-line interface
+
 3. **Configure ChatGPT:**
    - Open ChatGPT → Settings → Personalization → Model Context Protocol
    - Add server:
      - **Name**: `3d-model-server`
-     - **URL**: `https://your-mcp-ngrok-url.ngrok-free.app/mcp` ⚠️ **Include `/mcp` at the end!**
+     - **URL**: 
+       - If using ngrok: `https://your-mcp-ngrok-url.ngrok-free.app/mcp`
+       - If using localtunnel: `https://hello3dllm-mcpserver.loca.lt/mcp`
+       - ⚠️ **Include `/mcp` at the end!**
      - **Transport**: HTTP or Streamable HTTP
 
 4. **Deploy front-end to Netlify:**
    - Build command: `npm run build`
    - Publish directory: `dist`
-   - **Environment Variable**: Set `VITE_WS_URL` to your WebSocket ngrok URL:
-     ```
-     VITE_WS_URL=wss://your-websocket-ngrok-url.ngrok-free.app
-     ```
-     ⚠️ **Use `wss://` (not `ws://`) and the HTTPS ngrok URL**
+   - **Environment Variable**: Set `VITE_WS_URL` to your WebSocket tunnel URL:
+     - If using ngrok: `VITE_WS_URL=wss://your-websocket-ngrok-url.ngrok-free.app`
+     - If using localtunnel: `VITE_WS_URL=wss://hello3dllm-websocket.loca.lt`
+     - ⚠️ **Use `wss://` (not `ws://`) and the HTTPS tunnel URL**
 
-5. **Keep your local server running** while using the application
+5. **Keep everything running** while using the application:
+   - ✅ Your local MCP server must stay running
+   - ✅ Both tunnels (ngrok or localtunnel) must stay active
+   - ✅ Your local machine must be connected to the internet
+
+**Important Notes:**
+
+- **Tunnel URL stability**:
+  - **ngrok**: URLs change each time you restart ngrok on the free tier (unless you use a paid plan with a custom domain). You'll need to update Netlify env vars and ChatGPT config each time.
+  - **localtunnel**: Custom subdomains remain consistent as long as the subdomain is available and the tunnel stays active. This makes it easier to maintain stable URLs.
+
+- **Redeploy Netlify after URL changes**: When your tunnel WebSocket URL changes, you must update `VITE_WS_URL` in Netlify and trigger a new deployment for the change to take effect.
+
+- **Keep tunnels active**: Both tunnels must remain running. If either tunnel stops, the corresponding connection will fail.
 
 **Pros:**
 - ✅ Free hosting for front-end (Netlify)
@@ -280,12 +438,14 @@ cors({
 
 **Cons:**
 - ❌ Requires your local machine to be running 24/7 for production use
-- ❌ Two ngrok tunnels needed (free tier has limits)
-- ❌ ngrok free tier URLs change on restart (unless using paid tier with custom domain)
+- ❌ Two tunnels needed (ngrok free tier has limits; localtunnel is free but subdomains may be taken)
+- ❌ ngrok free tier URLs change on restart (requires updating Netlify env vars and ChatGPT config each time)
 - ❌ Network-dependent (your internet connection must be stable)
+- ❌ Must manually update and redeploy Netlify whenever tunnel WebSocket URL changes (less frequent with localtunnel's stable subdomains)
+- ❌ Must manually update ChatGPT MCP server URL whenever tunnel MCP URL changes (less frequent with localtunnel's stable subdomains)
 
-**Alternative: Single ngrok tunnel**
-If you want to use a single tunnel, you could modify the server to serve both MCP and WebSocket on the same port, but this requires code changes and may complicate the setup.
+**Alternative: Single tunnel**
+If you want to use a single tunnel (ngrok or localtunnel), you could modify the server to serve both MCP and WebSocket on the same port, but this requires code changes and may complicate the setup.
 
 ### Important: Hosting Limitations
 
