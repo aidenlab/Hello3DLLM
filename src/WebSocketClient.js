@@ -4,10 +4,11 @@
  * Automatically detects if server is not running and polls for availability
  */
 export class WebSocketClient {
-  constructor(onCommand, onStatusChange = null) {
+  constructor(onCommand, onStatusChange = null, sessionId = null) {
     this.ws = null;
     this.onCommand = onCommand;
     this.onStatusChange = onStatusChange;
+    this.sessionId = sessionId; // Store session ID for this client
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 1000;
@@ -85,16 +86,41 @@ export class WebSocketClient {
           this.pollingInterval = null;
         }
         
+        // Register session with server if sessionId is available
+        if (this.sessionId) {
+          console.log(`Registering session ID: ${this.sessionId}`);
+          this.ws.send(JSON.stringify({
+            type: 'registerSession',
+            sessionId: this.sessionId
+          }));
+        } else {
+          console.warn('No session ID provided. WebSocket connected but session not registered.');
+        }
+        
         this._notifyStatusChange(true);
       };
 
       this.ws.onmessage = (event) => {
         try {
-          const command = JSON.parse(event.data);
-          console.log('Received command:', command);
+          const data = JSON.parse(event.data);
+          
+          // Handle session registration confirmation
+          if (data.type === 'sessionRegistered') {
+            console.log(`Session registered successfully: ${data.sessionId}`);
+            return;
+          }
+          
+          // Handle error messages
+          if (data.type === 'error') {
+            console.error('WebSocket server error:', data.message);
+            return;
+          }
+          
+          // Handle regular commands
+          console.log('Received command:', data);
           
           if (this.onCommand) {
-            this.onCommand(command);
+            this.onCommand(data);
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
