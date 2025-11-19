@@ -162,19 +162,43 @@ The solution implements **session-based routing** using URL-based session pairin
 
 ### For ChatGPT Users
 
-1. **Get Session ID**: When ChatGPT connects to MCP server, check server logs:
-   ```
-   MCP session initialized: abc-123-def-456-ghi-789
+1. **Add MCP Tool**: Add Hello3DLLM as an MCP tool in ChatGPT
+
+2. **Get Connection URL**: Ask ChatGPT: "How do I connect to the 3D app?" or "Get browser URL"
+   - ChatGPT will call the `get_browser_connection_url` tool
+   - Returns a URL with your session ID embedded: `https://your-app.netlify.app?sessionId=abc-123...`
+
+3. **Open Browser**: Copy and paste the URL into your browser
+
+4. **Browser Connects**: Browser automatically registers with server using session ID
+
+5. **Isolated Control**: Your tool calls only affect your browser instance
+
+### For Server Administrators
+
+**Browser URL Configuration:**
+
+The server needs to know which URL to provide in connection links. Configure it using one of these methods:
+
+1. **Command-line argument** (recommended for testing):
+   ```bash
+   npm run mcp:server -- --browser-url https://your-app.netlify.app
+   # or short form:
+   npm run mcp:server -- -u https://your-app.netlify.app
    ```
 
-2. **Share URL**: Provide browser URL with session ID:
-   ```
-   http://localhost:5173?sessionId=abc-123-def-456-ghi-789
+2. **Environment variable**:
+   ```bash
+   BROWSER_URL=https://your-app.netlify.app npm run mcp:server
    ```
 
-3. **Browser Connects**: Browser automatically registers with server using session ID
+3. **Default** (if neither provided):
+   - Uses `http://localhost:5173` for local development
 
-4. **Isolated Control**: Your tool calls only affect your browser instance
+**Priority Order:**
+- Command-line argument (`--browser-url`) - highest priority
+- Environment variable (`BROWSER_URL`)
+- Default (`http://localhost:5173`) - lowest priority
 
 ### For Developers
 

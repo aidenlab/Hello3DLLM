@@ -12,11 +12,46 @@ import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { appleCrayonColorsHexStrings } from './src/utils/color/color.js';
 
+// Parse command line arguments
+function parseCommandLineArgs() {
+  const args = {};
+  for (let i = 2; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg === '--browser-url' || arg === '-u') {
+      args.browserUrl = process.argv[++i];
+    } else if (arg.startsWith('--browser-url=')) {
+      args.browserUrl = arg.split('=')[1];
+    } else if (arg === '--help' || arg === '-h') {
+      console.log(`
+Usage: node server.js [options]
+
+Options:
+  --browser-url, -u <url>    Browser URL for the 3D app (e.g., https://your-app.netlify.app)
+                             Overrides BROWSER_URL environment variable
+  --help, -h                 Show this help message
+
+Environment Variables:
+  BROWSER_URL                Browser URL (used if --browser-url not provided)
+  MCP_PORT                   MCP server port (default: 3000)
+  WS_PORT                    WebSocket server port (default: 3001)
+
+Examples:
+  node server.js --browser-url https://my-app.netlify.app
+  node server.js -u http://localhost:5173
+      `);
+      process.exit(0);
+    }
+  }
+  return args;
+}
+
+const cliArgs = parseCommandLineArgs();
+
 const MCP_PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
 const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 3001;
 // Browser URL for the 3D app (Netlify deployment)
-// Can be set via BROWSER_URL environment variable, defaults to localhost for development
-const BROWSER_URL = process.env.BROWSER_URL || 'http://localhost:5173';
+// Priority: 1) Command line argument (--browser-url), 2) Environment variable (BROWSER_URL), 3) Default (localhost)
+const BROWSER_URL = cliArgs.browserUrl || process.env.BROWSER_URL || 'http://localhost:5173';
 
 /**
  * Converts a color input (hex code or Apple crayon color name) to a hex code
@@ -843,6 +878,7 @@ if (existsSync(distPath)) {
 app.listen(MCP_PORT, () => {
   console.log(`MCP Server listening on http://localhost:${MCP_PORT}/mcp`);
   console.log(`WebSocket server listening on ws://localhost:${WS_PORT}`);
+  console.log(`Browser URL configured: ${BROWSER_URL}`);
   if (existsSync(distPath)) {
     console.log(`Serving static files from ${distPath}`);
   }

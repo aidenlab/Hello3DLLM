@@ -28,6 +28,21 @@ A 3D interactive model visualization built with Three.js, enhanced with Model Co
    npm run mcp:server
    ```
    Server starts on `http://localhost:3000/mcp` (MCP) and `ws://localhost:3001` (WebSocket)
+   
+   **Optional: Specify browser URL for connection links:**
+   ```bash
+   # For localhost development (default)
+   npm run mcp:server
+   
+   # For Netlify deployment
+   npm run mcp:server -- --browser-url https://your-app.netlify.app
+   
+   # Or use short form
+   npm run mcp:server -- -u https://your-app.netlify.app
+   
+   # See help
+   npm run mcp:server -- --help
+   ```
 
 3. **Start the web application** (in another terminal):
    ```bash
@@ -92,6 +107,22 @@ Connect to: `http://localhost:3000/mcp`
 
 ChatGPT requires a publicly accessible server. See [ChatGPT Setup](#chatgpt-setup) for detailed instructions.
 
+## Connecting to the 3D App
+
+### For Single-User Sessions
+
+1. **Add the MCP tool** in ChatGPT (or your MCP client)
+2. **Ask ChatGPT**: "How do I connect to the 3D app?" or "Get browser URL"
+3. **ChatGPT will provide a connection URL** with your session ID embedded
+4. **Copy and paste the URL** into your browser
+5. The browser will automatically connect to your ChatGPT session
+
+The connection URL format: `https://your-app.netlify.app?sessionId=<your-session-id>`
+
+### For Multi-User Sessions
+
+Each ChatGPT session gets its own unique session ID. When you ask for the connection URL, ChatGPT provides a URL specific to your session. Multiple users can connect simultaneously, each with their own isolated browser instance.
+
 ## Using the MCP Tools
 
 Once connected, ask your AI assistant to manipulate the model using natural language:
@@ -105,6 +136,19 @@ Once connected, ask your AI assistant to manipulate the model using natural lang
 The AI will automatically call the appropriate MCP tools, and changes appear in real-time in your browser.
 
 ## Available MCP Tools
+
+### `get_browser_connection_url`
+
+Returns the URL to open in your browser to connect the 3D visualization app. This tool is automatically called when users ask how to connect or how to open the 3D app.
+
+**Parameters:**
+- None
+
+**Example Usage:**
+- User asks: "How do I connect to the 3D app?"
+- ChatGPT calls this tool and returns: "To connect your browser to the 3D visualization app, open this URL: https://your-app.netlify.app?sessionId=abc-123..."
+
+**Note:** The URL includes the current session ID, ensuring each ChatGPT session connects to its own browser instance.
 
 ### `change_model_color`
 
@@ -686,7 +730,32 @@ Hello3DLLM/
 
 **Server Configuration:**
 ```bash
+# Basic usage (defaults to localhost:5173 for browser URL)
 MCP_PORT=3000 WS_PORT=3001 npm run mcp:server
+
+# With browser URL environment variable
+BROWSER_URL=https://your-app.netlify.app npm run mcp:server
+
+# With command-line argument (overrides environment variable)
+npm run mcp:server -- --browser-url https://your-app.netlify.app
+```
+
+**Browser URL Configuration Priority:**
+1. Command-line argument (`--browser-url` or `-u`) - highest priority
+2. Environment variable (`BROWSER_URL`)
+3. Default (`http://localhost:5173`) - lowest priority
+
+**Command-Line Options:**
+- `--browser-url <url>` or `-u <url>`: Set the browser URL for connection links
+- `--help` or `-h`: Show usage help
+
+**Example:**
+```bash
+# Use Netlify URL for connection links
+npm run mcp:server -- --browser-url https://my-app.netlify.app
+
+# Use localhost (default)
+npm run mcp:server
 ```
 
 **Front-End Configuration:**
