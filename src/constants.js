@@ -33,15 +33,7 @@ export const CONFIG = {
             // Key light - main light source (brighter, positioned at ~45 degrees)
             KEY_LIGHT:
                 {
-                    COLOR: (() => {
-                        const strawberry = getAppleCrayonColorByName('strawberry');
-                        const hsl = {};
-                        strawberry.getHSL(hsl);
-                        hsl.l = Math.min(1.0, hsl.l + 0.3); // Brighten by increasing lightness
-                        const brightStrawberry = new THREE.Color();
-                        brightStrawberry.setHSL(hsl.h, hsl.s, hsl.l);
-                        return brightStrawberry;
-                    })(),
+                    COLOR: getAppleCrayonColorByName('snow'),
                     INTENSITY: 2.5,
                     WIDTH: 6,
                     HEIGHT: 6,
@@ -61,7 +53,7 @@ export const CONFIG = {
             // Fill light - softer light to fill shadows (lower intensity, opposite side)
             FILL_LIGHT:
                 {
-                    COLOR: getAppleCrayonColorByName('aqua'),
+                    COLOR: getAppleCrayonColorByName('snow'),
                     INTENSITY: 0.2,
                     WIDTH: 8,
                     HEIGHT: 8,
