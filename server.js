@@ -14,6 +14,9 @@ import { appleCrayonColorsHexStrings } from './src/utils/color/color.js';
 
 const MCP_PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
 const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 3001;
+// Browser URL for the 3D app (Netlify deployment)
+// Can be set via BROWSER_URL environment variable, defaults to localhost for development
+const BROWSER_URL = process.env.BROWSER_URL || 'http://localhost:5173';
 
 /**
  * Converts a color input (hex code or Apple crayon color name) to a hex code
@@ -558,6 +561,42 @@ mcpServer.registerTool(
         {
           type: 'text',
           text: `Fill light size set to ${width} x ${height}`
+        }
+      ]
+    };
+  }
+);
+
+// Register tool: get_browser_connection_url
+mcpServer.registerTool(
+  'get_browser_connection_url',
+  {
+    title: 'Get Browser Connection URL',
+    description: 'Get the URL to open in your browser to connect the 3D visualization app. Use this when users ask how to connect or how to open the 3D app.',
+    inputSchema: {}
+  },
+  async () => {
+    const sessionId = sessionContext.getStore();
+    
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found. Please ensure the MCP connection is properly initialized.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    const connectionUrl = `${BROWSER_URL}?sessionId=${sessionId}`;
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `To connect your browser to the 3D visualization app, open this URL:\n\n${connectionUrl}\n\nCopy and paste this URL into your web browser to begin interacting with the 3D scene.`
         }
       ]
     };
