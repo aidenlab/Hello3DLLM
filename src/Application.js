@@ -166,15 +166,58 @@ export class Application {
   }
 
   _setupWebSocket() {
+    // Extract session ID from URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('sessionId');
+    
+    if (!sessionId) {
+      console.error('No sessionId found in URL. Please include ?sessionId=<uuid> in the URL.');
+      this._showSessionIdError();
+      return;
+    }
+    
+    console.log(`Initializing WebSocket client with session ID: ${sessionId}`);
+    
     this.wsClient = new WebSocketClient(
       (command) => {
         this._handleWebSocketCommand(command);
       },
       (connected) => {
         this._updateConnectionStatus(connected);
-      }
+      },
+      sessionId
     );
     this.wsClient.connect();
+  }
+
+  _showSessionIdError() {
+    // Create or update error message element
+    let errorElement = document.getElementById('session-id-error');
+    if (!errorElement) {
+      errorElement = document.createElement('div');
+      errorElement.id = 'session-id-error';
+      errorElement.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #ff4444;
+        color: white;
+        padding: 20px 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        z-index: 10000;
+        text-align: center;
+        max-width: 500px;
+      `;
+      document.body.appendChild(errorElement);
+    }
+    
+    errorElement.innerHTML = `
+      <h3 style="margin: 0 0 10px 0;">Session ID Required</h3>
+      <p style="margin: 0;">Please include a sessionId in the URL query parameters.</p>
+      <p style="margin: 10px 0 0 0; font-size: 0.9em;">Example: <code>?sessionId=your-uuid-here</code></p>
+    `;
   }
 
   _updateConnectionStatus(connected) {

@@ -5,14 +5,53 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { appleCrayonColorsHexStrings } from './src/utils/color/color.js';
 
+// Parse command line arguments
+function parseCommandLineArgs() {
+  const args = {};
+  for (let i = 2; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg === '--browser-url' || arg === '-u') {
+      args.browserUrl = process.argv[++i];
+    } else if (arg.startsWith('--browser-url=')) {
+      args.browserUrl = arg.split('=')[1];
+    } else if (arg === '--help' || arg === '-h') {
+      console.log(`
+Usage: node server.js [options]
+
+Options:
+  --browser-url, -u <url>    Browser URL for the 3D app (e.g., https://your-app.netlify.app)
+                             Overrides BROWSER_URL environment variable
+  --help, -h                 Show this help message
+
+Environment Variables:
+  BROWSER_URL                Browser URL (used if --browser-url not provided)
+  MCP_PORT                   MCP server port (default: 3000)
+  WS_PORT                    WebSocket server port (default: 3001)
+
+Examples:
+  node server.js --browser-url https://my-app.netlify.app
+  node server.js -u http://localhost:5173
+      `);
+      process.exit(0);
+    }
+  }
+  return args;
+}
+
+const cliArgs = parseCommandLineArgs();
+
 const MCP_PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
 const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 3001;
+// Browser URL for the 3D app (Netlify deployment)
+// Priority: 1) Command line argument (--browser-url), 2) Environment variable (BROWSER_URL), 3) Default (localhost)
+const BROWSER_URL = cliArgs.browserUrl || process.env.BROWSER_URL || 'http://localhost:5173';
 
 /**
  * Converts a color input (hex code or Apple crayon color name) to a hex code
@@ -47,42 +86,97 @@ function normalizeColorToHex(colorInput) {
   return null;
 }
 
-// Store connected WebSocket clients
-const wsClients = new Set();
+// Store connected WebSocket clients by session ID
+// Map<sessionId, WebSocket>
+const wsClients = new Map();
 
 // Create WebSocket server for browser communication
 const wss = new WebSocketServer({ port: WS_PORT });
 
 wss.on('connection', (ws) => {
-  console.log('Browser client connected');
-  wsClients.add(ws);
+  console.log('Browser client connected (waiting for session ID)');
+  let sessionId = null;
 
-  // Handle incoming messages from clients (for testing/debugging)
+  // Handle incoming messages from clients
   ws.on('message', (message) => {
     try {
-      const command = JSON.parse(message.toString());
-      console.log('Received command from client:', command);
-      // Broadcast to all clients (including the sender)
-      broadcastToClients(command);
+      const data = JSON.parse(message.toString());
+      
+      // First message should be session registration
+      if (data.type === 'registerSession' && data.sessionId) {
+        sessionId = data.sessionId;
+        wsClients.set(sessionId, ws);
+        console.log(`Browser client registered with session ID: ${sessionId}`);
+        
+        // Send confirmation
+        ws.send(JSON.stringify({
+          type: 'sessionRegistered',
+          sessionId: sessionId
+        }));
+      } else if (sessionId) {
+        // Handle other messages (for testing/debugging)
+        console.log(`Received command from client (session ${sessionId}):`, data);
+        // Note: We no longer broadcast client-to-client messages
+        // If needed, this could route to a specific session
+      } else {
+        console.warn('Received message from unregistered client');
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Session not registered. Please send registerSession message first.'
+        }));
+      }
     } catch (error) {
       console.error('Error parsing WebSocket message:', error);
     }
   });
 
   ws.on('close', () => {
-    console.log('Browser client disconnected');
-    wsClients.delete(ws);
+    if (sessionId) {
+      console.log(`Browser client disconnected (session: ${sessionId})`);
+      wsClients.delete(sessionId);
+    } else {
+      console.log('Browser client disconnected (unregistered)');
+    }
   });
 
   ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
+    console.error(`WebSocket error (session: ${sessionId || 'unregistered'}):`, error);
   });
 });
 
-// Broadcast command to all connected browser clients
+// Send command to a specific session's browser client
+function sendToSession(sessionId, command) {
+  const ws = wsClients.get(sessionId);
+  if (ws && ws.readyState === 1) { // WebSocket.OPEN
+    const message = JSON.stringify(command);
+    ws.send(message);
+    return true;
+  } else {
+    console.warn(`No active WebSocket connection found for session: ${sessionId}`);
+    return false;
+  }
+}
+
+// Request-scoped context for current session ID using AsyncLocalStorage
+// This maintains context across async operations
+const sessionContext = new AsyncLocalStorage();
+
+// Helper function for tool handlers to route commands to the current request's session
+function routeToCurrentSession(command) {
+  const sessionId = sessionContext.getStore();
+  if (sessionId) {
+    console.log(`Routing command to session: ${sessionId}`, command.type);
+    sendToSession(sessionId, command);
+  } else {
+    console.warn('Tool handler called but no session context available. Command not routed.');
+    console.warn('Current request session ID:', sessionId);
+  }
+}
+
+// Broadcast command to all connected browser clients (kept for backward compatibility if needed)
 function broadcastToClients(command) {
   const message = JSON.stringify(command);
-  wsClients.forEach((client) => {
+  wsClients.forEach((client, sessionId) => {
     if (client.readyState === 1) { // WebSocket.OPEN
       client.send(message);
     }
@@ -142,7 +236,7 @@ mcpServer.registerTool(
       };
     }
 
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'changeColor',
       color: hexColor
     });
@@ -170,7 +264,7 @@ mcpServer.registerTool(
     }
   },
   async ({ size }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'changeSize',
       size: size
     });
@@ -199,7 +293,7 @@ mcpServer.registerTool(
     }
   },
   async ({ x, y, z }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'scaleCube',
       x: x,
       y: y,
@@ -241,7 +335,7 @@ mcpServer.registerTool(
       };
     }
 
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'changeBackgroundColor',
       color: hexColor
     });
@@ -269,7 +363,7 @@ mcpServer.registerTool(
     }
   },
   async ({ intensity }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setKeyLightIntensity',
       intensity: intensity
     });
@@ -297,7 +391,7 @@ mcpServer.registerTool(
     }
   },
   async ({ x, y, z }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setKeyLightPosition',
       x: x,
       y: y,
@@ -338,7 +432,7 @@ mcpServer.registerTool(
       };
     }
 
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setKeyLightColor',
       color: hexColor
     });
@@ -366,7 +460,7 @@ mcpServer.registerTool(
     }
   },
   async ({ width, height }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setKeyLightSize',
       width: width,
       height: height
@@ -394,7 +488,7 @@ mcpServer.registerTool(
     }
   },
   async ({ intensity }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setFillLightIntensity',
       intensity: intensity
     });
@@ -422,7 +516,7 @@ mcpServer.registerTool(
     }
   },
   async ({ x, y, z }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setFillLightPosition',
       x: x,
       y: y,
@@ -463,7 +557,7 @@ mcpServer.registerTool(
       };
     }
 
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setFillLightColor',
       color: hexColor
     });
@@ -491,7 +585,7 @@ mcpServer.registerTool(
     }
   },
   async ({ width, height }) => {
-    broadcastToClients({
+    routeToCurrentSession({
       type: 'setFillLightSize',
       width: width,
       height: height
@@ -502,6 +596,42 @@ mcpServer.registerTool(
         {
           type: 'text',
           text: `Fill light size set to ${width} x ${height}`
+        }
+      ]
+    };
+  }
+);
+
+// Register tool: get_browser_connection_url
+mcpServer.registerTool(
+  'get_browser_connection_url',
+  {
+    title: 'Get Browser Connection URL',
+    description: 'Get the URL to open in your browser to connect the 3D visualization app. Use this when users ask how to connect or how to open the 3D app.',
+    inputSchema: {}
+  },
+  async () => {
+    const sessionId = sessionContext.getStore();
+    
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found. Please ensure the MCP connection is properly initialized.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    const connectionUrl = `${BROWSER_URL}?sessionId=${sessionId}`;
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `To connect your browser to the 3D visualization app, open this URL:\n\n${connectionUrl}\n\nCopy and paste this URL into your web browser to begin interacting with the 3D scene.`
         }
       ]
     };
@@ -617,23 +747,53 @@ app.post('/mcp', async (req, res) => {
       return;
     }
 
-    // Detect tool calls and notify WebSocket clients
-    if (req.body?.method === 'tools/call' && req.body?.params?.name) {
-      const toolName = req.body.params.name;
-      console.log(`MCP tool called: ${toolName}`);
-      
-      // Send tool call notification to WebSocket clients
-      broadcastToClients({
-        type: 'toolCall',
-        toolName: toolName,
-        timestamp: Date.now()
-      });
-    }
+    // Use AsyncLocalStorage to maintain session context across async operations
+    // This ensures tool handlers can access the sessionId even when called asynchronously
+    try {
+      await sessionContext.run(sessionId || null, async () => {
+        console.log(`Setting request context for session: ${sessionId || 'null'}`);
 
-    // Handle the POST request
-    await transport.handleRequest(req, res, req.body);
+        // Detect tool calls and notify WebSocket clients
+        if (req.body?.method === 'tools/call' && req.body?.params?.name) {
+          const toolName = req.body.params.name;
+          console.log(`MCP tool called: ${toolName} (session: ${sessionId || 'unknown'})`);
+          
+          // Send tool call notification to specific session's browser client
+          if (sessionId) {
+            const sent = sendToSession(sessionId, {
+              type: 'toolCall',
+              toolName: toolName,
+              timestamp: Date.now()
+            });
+            if (!sent) {
+              console.warn(`Tool call notification not sent - no browser connected for session: ${sessionId}`);
+            }
+          }
+        }
+
+        // Handle the POST request - tool handlers will be called during this
+        // The sessionContext will maintain the sessionId across all async operations
+        await transport.handleRequest(req, res, req.body);
+        
+        console.log(`Request handling complete for session: ${sessionId || 'null'}`);
+      });
+    } catch (error) {
+      console.error('Error handling MCP POST request:', error);
+      
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error'
+          },
+          id: null
+        });
+      }
+    }
   } catch (error) {
-    console.error('Error handling MCP POST request:', error);
+    console.error('Error in MCP POST handler (transport setup):', error);
+    
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
@@ -718,6 +878,7 @@ if (existsSync(distPath)) {
 app.listen(MCP_PORT, () => {
   console.log(`MCP Server listening on http://localhost:${MCP_PORT}/mcp`);
   console.log(`WebSocket server listening on ws://localhost:${WS_PORT}`);
+  console.log(`Browser URL configured: ${BROWSER_URL}`);
   if (existsSync(distPath)) {
     console.log(`Serving static files from ${distPath}`);
   }
