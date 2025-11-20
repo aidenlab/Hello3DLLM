@@ -44,6 +44,14 @@ html, body {
     height: 12px;
   }
 
+  /* Not connected state: gray/yellow ring (no session ID, standalone mode) */
+  &.not-connected &-indicator {
+    background-color: transparent;
+    border: 2px solid #6c757d;
+    width: 12px;
+    height: 12px;
+  }
+
   /* Connected state: solid green with pulse animation */
   &.connected &-indicator {
     background-color: #28a745;

@@ -171,8 +171,9 @@ export class Application {
     const sessionId = urlParams.get('sessionId');
     
     if (!sessionId) {
-      console.error('No sessionId found in URL. Please include ?sessionId=<uuid> in the URL.');
-      this._showSessionIdError();
+      // No session ID provided - app can run but without ChatGPT/MCP connection
+      console.log('No sessionId found in URL. App running in standalone mode (no ChatGPT connection).');
+      this._updateConnectionStatus(false, 'not-connected');
       return;
     }
     
@@ -190,48 +191,25 @@ export class Application {
     this.wsClient.connect();
   }
 
-  _showSessionIdError() {
-    // Create or update error message element
-    let errorElement = document.getElementById('session-id-error');
-    if (!errorElement) {
-      errorElement = document.createElement('div');
-      errorElement.id = 'session-id-error';
-      errorElement.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #ff4444;
-        color: white;
-        padding: 20px 30px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        z-index: 10000;
-        text-align: center;
-        max-width: 500px;
-      `;
-      document.body.appendChild(errorElement);
-    }
-    
-    errorElement.innerHTML = `
-      <h3 style="margin: 0 0 10px 0;">Session ID Required</h3>
-      <p style="margin: 0;">Please include a sessionId in the URL query parameters.</p>
-      <p style="margin: 10px 0 0 0; font-size: 0.9em;">Example: <code>?sessionId=your-uuid-here</code></p>
-    `;
-  }
-
-  _updateConnectionStatus(connected) {
+  _updateConnectionStatus(connected, statusType = 'disconnected') {
     const statusElement = document.getElementById('ws-status');
     const labelElement = statusElement.querySelector('.ws-status-label');
     
     if (connected) {
-      statusElement.classList.remove('disconnected');
+      statusElement.classList.remove('disconnected', 'not-connected');
       statusElement.classList.add('connected');
       labelElement.textContent = 'connected';
     } else {
       statusElement.classList.remove('connected');
-      statusElement.classList.add('disconnected');
-      labelElement.textContent = 'disconnected';
+      if (statusType === 'not-connected') {
+        statusElement.classList.remove('disconnected');
+        statusElement.classList.add('not-connected');
+        labelElement.textContent = 'not connected';
+      } else {
+        statusElement.classList.remove('not-connected');
+        statusElement.classList.add('disconnected');
+        labelElement.textContent = 'disconnected';
+      }
     }
   }
 
