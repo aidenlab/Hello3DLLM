@@ -100,11 +100,40 @@ claude mcp add --transport http 3d-model-server http://localhost:3000/mcp
 
 #### MCP Inspector
 
-Test the server:
+The MCP Inspector is a developer tool for testing and debugging MCP servers. It provides an interactive web interface to explore server capabilities, test tools, and view resources.
+
+**To use with your MCP server:**
+
+1. **Make sure your MCP server is running:**
+   ```bash
+   node server.js
+   ```
+   Server should be running on `http://localhost:3000/mcp`
+
+2. **Start the MCP Inspector:**
+   ```bash
+   npx @modelcontextprotocol/inspector http://localhost:3000/mcp
+   ```
+
+3. **Open the Inspector UI:**
+   - The inspector will start a web interface (usually on `http://localhost:5173`)
+   - Open your browser and navigate to the URL shown in the terminal
+   - You'll see an interactive interface where you can:
+     - Browse available tools (e.g., `change_model_color`, `change_model_size`, etc.)
+     - Test tool calls with different parameters
+     - View server capabilities and resources
+     - See real-time responses from your MCP server
+
+4. **Test your tools:**
+   - In the Inspector UI, select a tool (e.g., `change_model_color`)
+   - Enter parameters (e.g., `{"color": "#ff0000"}`)
+   - Click "Call Tool" to execute
+   - Verify the changes appear in your 3D app (if it's running and connected)
+
+**Note:** The Inspector connects directly to your MCP HTTP endpoint. Make sure your server is running before starting the Inspector. If you're using a tunneled server (for remote access), you can also connect to the tunneled URL:
 ```bash
-npx @modelcontextprotocol/inspector
+npx @modelcontextprotocol/inspector https://your-tunnel-url.ngrok-free.app/mcp
 ```
-Connect to: `http://localhost:3000/mcp`
 
 ### ChatGPT (Requires Public Access)
 
