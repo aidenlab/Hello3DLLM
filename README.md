@@ -102,6 +102,10 @@ claude mcp add --transport http 3d-model-server http://localhost:3000/mcp
 
 The MCP Inspector is a developer tool for testing and debugging MCP servers. It provides an interactive web interface to explore server capabilities, test tools, and view resources.
 
+![MCP Inspector Interface](images/mcp-inspector-screenshot.png)
+
+*Example: MCP Inspector connected to the server, showing the `change_background_color` tool being tested with the color "tin".*
+
 **To use with your MCP server:**
 
 1. **Make sure your MCP server is running:**
@@ -118,17 +122,47 @@ The MCP Inspector is a developer tool for testing and debugging MCP servers. It 
 3. **Open the Inspector UI:**
    - The inspector will start a web interface (usually on `http://localhost:5173`)
    - Open your browser and navigate to the URL shown in the terminal
-   - You'll see an interactive interface where you can:
-     - Browse available tools (e.g., `change_model_color`, `change_model_size`, etc.)
-     - Test tool calls with different parameters
-     - View server capabilities and resources
-     - See real-time responses from your MCP server
 
-4. **Test your tools:**
-   - In the Inspector UI, select a tool (e.g., `change_model_color`)
-   - Enter parameters (e.g., `{"color": "#ff0000"}`)
-   - Click "Call Tool" to execute
-   - Verify the changes appear in your 3D app (if it's running and connected)
+4. **Configure the connection:**
+   - **Transport Type:** Select "Streamable HTTP" (this matches your server's transport)
+   - **URL:** Enter `http://localhost:3000/mcp` (note: port 3000, not 3001)
+   - **Connection Type:** Select "Direct"
+   - Click the **"Connect"** button
+   - You should see a green dot and "Connected" status when successful
+
+5. **Browse and test tools:**
+   - Click on the **"Tools"** tab in the top navigation bar
+   - You'll see a list of all available tools in the middle pane:
+     - `change_model_color` - Change the color of the 3D model
+     - `change_model_size` - Change the uniform size of the model
+     - `scale_model` - Scale the model independently in each dimension
+     - `change_background_color` - Change the background color of the scene
+     - `set_key_light_intensity` - Set the intensity of the key light
+     - `set_key_light_position` - Set the position of the key light
+     - And more...
+
+6. **Call a tool:**
+   - Click on any tool name in the tools list to select it
+   - The right pane will show the tool's description and parameters
+   - Enter the required parameter value(s) in the input field(s):
+     - For `change_background_color`: Enter a color name (e.g., `"tin"`) or hex code (e.g., `"#878687"`)
+     - For `change_model_size`: Enter a number (e.g., `2.5`)
+     - For `scale_model`: Enter values for x, y, z axes
+   - Click the **"Run Tool"** button (paper airplane icon)
+   - The result will appear below, showing "Success" and the response message
+   - If your 3D app is running and connected, you'll see the changes reflected immediately
+
+7. **View history:**
+   - The bottom-left "History" pane shows all your previous tool calls
+   - Click on any history entry to see its details
+   - Use "Clear" to remove history entries
+
+**Example:** To change the background color to tin:
+1. Select `change_background_color` from the tools list
+2. Enter `tin` in the "color" parameter field
+3. Click "Run Tool"
+4. You'll see: `"Background color changed to tin (#878687)"`
+5. The background in your 3D app will update to the new color
 
 **Note:** The Inspector connects directly to your MCP HTTP endpoint. Make sure your server is running before starting the Inspector. If you're using a tunneled server (for remote access), you can also connect to the tunneled URL:
 ```bash
