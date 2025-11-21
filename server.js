@@ -419,6 +419,98 @@ mcpServer.registerTool(
   }
 );
 
+mcpServer.registerTool(
+  'swing_key_light_up',
+  {
+    title: 'Swing Key Light Up',
+    description: 'Rotate the key light upward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingKeyLightUp'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Key light swung up'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_key_light_down',
+  {
+    title: 'Swing Key Light Down',
+    description: 'Rotate the key light downward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingKeyLightDown'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Key light swung down'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_key_light_left',
+  {
+    title: 'Swing Key Light Left',
+    description: 'Rotate the key light leftward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingKeyLightLeft'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Key light swung left'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_key_light_right',
+  {
+    title: 'Swing Key Light Right',
+    description: 'Rotate the key light rightward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingKeyLightRight'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Key light swung right'
+        }
+      ]
+    };
+  }
+);
+
 // Fill light control tools
 mcpServer.registerTool(
   'set_fill_light_intensity',
@@ -480,6 +572,190 @@ mcpServer.registerTool(
         {
           type: 'text',
           text: `Fill light color changed to ${displayName}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_fill_light_up',
+  {
+    title: 'Swing Fill Light Up',
+    description: 'Rotate the fill light upward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingFillLightUp'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Fill light swung up'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_fill_light_down',
+  {
+    title: 'Swing Fill Light Down',
+    description: 'Rotate the fill light downward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingFillLightDown'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Fill light swung down'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_fill_light_left',
+  {
+    title: 'Swing Fill Light Left',
+    description: 'Rotate the fill light leftward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingFillLightLeft'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Fill light swung left'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'swing_fill_light_right',
+  {
+    title: 'Swing Fill Light Right',
+    description: 'Rotate the fill light rightward in an arc around the center of the model',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'swingFillLightRight'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Fill light swung right'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'walk_key_light_in',
+  {
+    title: 'Walk Key Light In',
+    description: 'Move the key light closer to the center of the model along the axis from the model origin',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'walkKeyLightIn'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Key light walked in'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'walk_key_light_out',
+  {
+    title: 'Walk Key Light Out',
+    description: 'Move the key light farther from the center of the model along the axis from the model origin',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'walkKeyLightOut'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Key light walked out'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'walk_fill_light_in',
+  {
+    title: 'Walk Fill Light In',
+    description: 'Move the fill light closer to the center of the model along the axis from the model origin',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'walkFillLightIn'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Fill light walked in'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'walk_fill_light_out',
+  {
+    title: 'Walk Fill Light Out',
+    description: 'Move the fill light farther from the center of the model along the axis from the model origin',
+    inputSchema: {}
+  },
+  async () => {
+    routeToCurrentSession({
+      type: 'walkFillLightOut'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Fill light walked out'
         }
       ]
     };

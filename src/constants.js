@@ -82,6 +82,8 @@ export const CONFIG = {
         PINCH_ZOOM_SENSITIVITY: 0.01,
         AREA_LIGHT_ROTATION_SENSITIVITY: 0.005,  // Sensitivity for area light rotation
         AREA_LIGHT_DOLLY_SENSITIVITY: 0.1,  // Sensitivity for area light dolly (movement along axis)
+        AREA_LIGHT_SWING_AMOUNT: 10,  // Amount to swing light (in degrees) for each command
+        AREA_LIGHT_WALK_AMOUNT: 1.0,  // Amount to walk light in/out (distance units) for each command
     },
 };
 

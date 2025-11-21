@@ -79,12 +79,48 @@ export class Application {
       ['setKeyLightColor', (command) => {
         this.sceneManager.setKeyLightColor(command.color);
       }],
+      ['swingKeyLightUp', () => {
+        this.sceneManager.swingKeyLightUp();
+      }],
+      ['swingKeyLightDown', () => {
+        this.sceneManager.swingKeyLightDown();
+      }],
+      ['swingKeyLightLeft', () => {
+        this.sceneManager.swingKeyLightLeft();
+      }],
+      ['swingKeyLightRight', () => {
+        this.sceneManager.swingKeyLightRight();
+      }],
+      ['walkKeyLightIn', () => {
+        this.sceneManager.walkKeyLightIn();
+      }],
+      ['walkKeyLightOut', () => {
+        this.sceneManager.walkKeyLightOut();
+      }],
       // Fill light controls
       ['setFillLightIntensity', (command) => {
         this.sceneManager.setFillLightIntensity(command.intensity);
       }],
       ['setFillLightColor', (command) => {
         this.sceneManager.setFillLightColor(command.color);
+      }],
+      ['swingFillLightUp', () => {
+        this.sceneManager.swingFillLightUp();
+      }],
+      ['swingFillLightDown', () => {
+        this.sceneManager.swingFillLightDown();
+      }],
+      ['swingFillLightLeft', () => {
+        this.sceneManager.swingFillLightLeft();
+      }],
+      ['swingFillLightRight', () => {
+        this.sceneManager.swingFillLightRight();
+      }],
+      ['walkFillLightIn', () => {
+        this.sceneManager.walkFillLightIn();
+      }],
+      ['walkFillLightOut', () => {
+        this.sceneManager.walkFillLightOut();
       }]
     ]);
   }

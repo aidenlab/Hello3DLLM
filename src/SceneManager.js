@@ -212,6 +212,102 @@ export class SceneManager {
     }
   }
 
+  // Key light swing methods
+  swingKeyLightUp() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(0, -swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingKeyLightDown() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(0, swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingKeyLightLeft() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(-swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  swingKeyLightRight() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  // Fill light swing methods
+  swingFillLightUp() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(0, -swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingFillLightDown() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(0, swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingFillLightLeft() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(-swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  swingFillLightRight() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  // Key light walk methods (dolly in/out)
+  walkKeyLightIn() {
+    if (this.keyLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.keyLight.dolly(-walkAmount); // Negative moves toward origin
+    }
+  }
+
+  walkKeyLightOut() {
+    if (this.keyLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.keyLight.dolly(walkAmount); // Positive moves away from origin
+    }
+  }
+
+  // Fill light walk methods (dolly in/out)
+  walkFillLightIn() {
+    if (this.fillLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.fillLight.dolly(-walkAmount); // Negative moves toward origin
+    }
+  }
+
+  walkFillLightOut() {
+    if (this.fillLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.fillLight.dolly(walkAmount); // Positive moves away from origin
+    }
+  }
+
   /**
    * Gets array of pickable objects for ray picking (picker geometries)
    * @returns {Array<THREE.Object3D>} Array of pickable objects
