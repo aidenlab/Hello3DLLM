@@ -294,7 +294,7 @@ mcpServer.registerTool(
   },
   async ({ x, y, z }) => {
     routeToCurrentSession({
-      type: 'scaleCube',
+      type: 'scaleModel',
       x: x,
       y: y,
       z: z
@@ -380,36 +380,6 @@ mcpServer.registerTool(
 );
 
 mcpServer.registerTool(
-  'set_key_light_position',
-  {
-    title: 'Set Key Light Position',
-    description: 'Set the position of the key light in 3D space',
-    inputSchema: {
-      x: z.number().describe('X coordinate'),
-      y: z.number().describe('Y coordinate'),
-      z: z.number().describe('Z coordinate')
-    }
-  },
-  async ({ x, y, z }) => {
-    routeToCurrentSession({
-      type: 'setKeyLightPosition',
-      x: x,
-      y: y,
-      z: z
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Key light position set to (${x}, ${y}, ${z})`
-        }
-      ]
-    };
-  }
-);
-
-mcpServer.registerTool(
   'set_key_light_color',
   {
     title: 'Set Key Light Color',
@@ -449,34 +419,6 @@ mcpServer.registerTool(
   }
 );
 
-mcpServer.registerTool(
-  'set_key_light_size',
-  {
-    title: 'Set Key Light Size',
-    description: 'Set the width and height of the key light area',
-    inputSchema: {
-      width: z.number().positive().describe('Width of the light area'),
-      height: z.number().positive().describe('Height of the light area')
-    }
-  },
-  async ({ width, height }) => {
-    routeToCurrentSession({
-      type: 'setKeyLightSize',
-      width: width,
-      height: height
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Key light size set to ${width} x ${height}`
-        }
-      ]
-    };
-  }
-);
-
 // Fill light control tools
 mcpServer.registerTool(
   'set_fill_light_intensity',
@@ -498,36 +440,6 @@ mcpServer.registerTool(
         {
           type: 'text',
           text: `Fill light intensity set to ${intensity}`
-        }
-      ]
-    };
-  }
-);
-
-mcpServer.registerTool(
-  'set_fill_light_position',
-  {
-    title: 'Set Fill Light Position',
-    description: 'Set the position of the fill light in 3D space',
-    inputSchema: {
-      x: z.number().describe('X coordinate'),
-      y: z.number().describe('Y coordinate'),
-      z: z.number().describe('Z coordinate')
-    }
-  },
-  async ({ x, y, z }) => {
-    routeToCurrentSession({
-      type: 'setFillLightPosition',
-      x: x,
-      y: y,
-      z: z
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Fill light position set to (${x}, ${y}, ${z})`
         }
       ]
     };
@@ -568,34 +480,6 @@ mcpServer.registerTool(
         {
           type: 'text',
           text: `Fill light color changed to ${displayName}`
-        }
-      ]
-    };
-  }
-);
-
-mcpServer.registerTool(
-  'set_fill_light_size',
-  {
-    title: 'Set Fill Light Size',
-    description: 'Set the width and height of the fill light area',
-    inputSchema: {
-      width: z.number().positive().describe('Width of the light area'),
-      height: z.number().positive().describe('Height of the light area')
-    }
-  },
-  async ({ width, height }) => {
-    routeToCurrentSession({
-      type: 'setFillLightSize',
-      width: width,
-      height: height
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Fill light size set to ${width} x ${height}`
         }
       ]
     };
