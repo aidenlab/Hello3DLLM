@@ -23,6 +23,7 @@ export const CONFIG = {
     MODEL: {
         SIZE: 1,
         COLOR: getAppleCrayonColorByName('snow'),
+        ORIGIN: { x: 0, y: -0.5, z: 0 },  // Model origin - center of rotation for area lights
     },
 
     // Lighting settings

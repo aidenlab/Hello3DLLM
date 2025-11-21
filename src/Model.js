@@ -51,8 +51,9 @@ export class Model {
   _createMesh() {
     // Create a mesh (geometry + material)
     this.mesh = new THREE.Mesh(this.geometry, this.material);
-    // Position model at y: -0.5 as in the bumpmap example
-    this.mesh.position.y = -0.5;
+    // Position model at model origin
+    const origin = CONFIG.MODEL.ORIGIN;
+    this.mesh.position.set(origin.x, origin.y, origin.z);
     // Apply initial scale
     this.mesh.scale.set(CONFIG.MODEL.SIZE, CONFIG.MODEL.SIZE, CONFIG.MODEL.SIZE);
   }

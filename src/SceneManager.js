@@ -54,17 +54,17 @@ export class SceneManager {
 
     // Key light - main light source
     this.keyLight = new AreaLight('key');
-    this.scene.add(this.keyLight.getLight());
-    // Add helper to visualize the key light
-    const keyLightHelper = new RectAreaLightHelper(this.keyLight.getLight());
-    this.keyLight.getLight().add(keyLightHelper);
+    this.scene.add(this.keyLight.getLight()); // Add parent group to scene
+    // Add helper to visualize the key light (attach to light object, not parent)
+    const keyLightHelper = new RectAreaLightHelper(this.keyLight.getLightObject());
+    this.keyLight.getLightObject().add(keyLightHelper);
 
     // Fill light - softer light to fill shadows
     this.fillLight = new AreaLight('fill');
-    this.scene.add(this.fillLight.getLight());
-    // Add helper to visualize the fill light
-    const fillLightHelper = new RectAreaLightHelper(this.fillLight.getLight());
-    this.fillLight.getLight().add(fillLightHelper);
+    this.scene.add(this.fillLight.getLight()); // Add parent group to scene
+    // Add helper to visualize the fill light (attach to light object, not parent)
+    const fillLightHelper = new RectAreaLightHelper(this.fillLight.getLightObject());
+    this.fillLight.getLightObject().add(fillLightHelper);
   }
 
   render(camera) {
@@ -127,60 +127,74 @@ export class SceneManager {
   // Key light control methods
   setKeyLightIntensity(intensity) {
     if (this.keyLight) {
-      this.keyLight.getLight().intensity = intensity;
+      this.keyLight.getLightObject().intensity = intensity;
     }
   }
 
   setKeyLightPosition(x, y, z) {
     if (this.keyLight) {
-      this.keyLight.getLight().position.set(x, y, z);
-      // Re-orient toward target
+      // Convert world position to relative position (relative to model origin)
+      const origin = CONFIG.MODEL.ORIGIN;
+      const relativeX = x - origin.x;
+      const relativeY = y - origin.y;
+      const relativeZ = z - origin.z;
+      
+      // Set position relative to parent group
+      this.keyLight.getLightObject().position.set(relativeX, relativeY, relativeZ);
+      // Re-orient toward target (world coordinates)
       const target = CONFIG.LIGHTING.KEY_LIGHT.TARGET || { x: 0, y: 0, z: 0 };
-      this.keyLight.getLight().lookAt(target.x, target.y, target.z);
+      this.keyLight.getLightObject().lookAt(target.x, target.y, target.z);
     }
   }
 
   setKeyLightColor(color) {
     if (this.keyLight) {
       const hexColor = parseInt(color.replace('#', ''), 16);
-      this.keyLight.getLight().color.setHex(hexColor);
+      this.keyLight.getLightObject().color.setHex(hexColor);
     }
   }
 
   setKeyLightSize(width, height) {
     if (this.keyLight) {
-      this.keyLight.getLight().width = width;
-      this.keyLight.getLight().height = height;
+      this.keyLight.getLightObject().width = width;
+      this.keyLight.getLightObject().height = height;
     }
   }
 
   // Fill light control methods
   setFillLightIntensity(intensity) {
     if (this.fillLight) {
-      this.fillLight.getLight().intensity = intensity;
+      this.fillLight.getLightObject().intensity = intensity;
     }
   }
 
   setFillLightPosition(x, y, z) {
     if (this.fillLight) {
-      this.fillLight.getLight().position.set(x, y, z);
-      // Re-orient toward target
+      // Convert world position to relative position (relative to model origin)
+      const origin = CONFIG.MODEL.ORIGIN;
+      const relativeX = x - origin.x;
+      const relativeY = y - origin.y;
+      const relativeZ = z - origin.z;
+      
+      // Set position relative to parent group
+      this.fillLight.getLightObject().position.set(relativeX, relativeY, relativeZ);
+      // Re-orient toward target (world coordinates)
       const target = CONFIG.LIGHTING.FILL_LIGHT.TARGET || { x: 0, y: 0, z: 0 };
-      this.fillLight.getLight().lookAt(target.x, target.y, target.z);
+      this.fillLight.getLightObject().lookAt(target.x, target.y, target.z);
     }
   }
 
   setFillLightColor(color) {
     if (this.fillLight) {
       const hexColor = parseInt(color.replace('#', ''), 16);
-      this.fillLight.getLight().color.setHex(hexColor);
+      this.fillLight.getLightObject().color.setHex(hexColor);
     }
   }
 
   setFillLightSize(width, height) {
     if (this.fillLight) {
-      this.fillLight.getLight().width = width;
-      this.fillLight.getLight().height = height;
+      this.fillLight.getLightObject().width = width;
+      this.fillLight.getLightObject().height = height;
     }
   }
 }
