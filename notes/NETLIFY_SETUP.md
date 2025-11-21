@@ -50,32 +50,14 @@ You need **two tunnels** - one for MCP HTTP and one for WebSocket.
 ```bash
 ngrok http 3000
 ```
-Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
+Creates URL (e.g., `https://sagittal-christiana-glareless.ngrok-free.dev`)
 
-**Terminal 2 - WebSocket tunnel (for Netlify app):**
-```bash
-ngrok http 3001
-```
-Copy the HTTPS URL (e.g., `https://xyz789.ngrok-free.app`)
-
-⚠️ **Important**: Use `wss://` (not `ws://`) for WebSocket connections.
-
-#### Using localtunnel (Recommended for stable URLs):
-
-**Terminal 1 - MCP HTTP tunnel:**
+**Terminal 2 - WebSocket tunnel (for Netlify hosted 3D app):**
 ```bash
 npm install -g localtunnel
-lt --port 3000 --subdomain hello3dllm-mcpserver
-```
-Creates: `https://hello3dllm-mcpserver.loca.lt`
-
-**Terminal 2 - WebSocket tunnel:**
-```bash
 lt --port 3001 --subdomain hello3dllm-websocket
 ```
-Creates: `https://hello3dllm-websocket.loca.lt`
-
-⚠️ **Important**: Use `wss://` protocol for WebSocket connections (e.g., `wss://hello3dllm-websocket.loca.lt`)
+Creates URL: (e.g., `https://hello3dllm-websocket.loca.lt`)
 
 **Benefits of localtunnel:**
 - ✅ Custom subdomains that remain consistent (as long as the subdomain is available)
@@ -132,9 +114,6 @@ Add to Cursor Settings → Features → Model Context Protocol:
 ## Important Notes
 
 - **Keep tunnels active**: Both tunnels must remain running. If either tunnel stops, the corresponding connection will fail.
-- **Tunnel URL stability**:
-  - **ngrok**: URLs change each time you restart ngrok on the free tier (unless you use a paid plan with a custom domain). You'll need to update Netlify env vars and ChatGPT config each time.
-  - **localtunnel**: Custom subdomains remain consistent as long as the subdomain is available and the tunnel stays active. This makes it easier to maintain stable URLs.
 - **Redeploy Netlify after URL changes**: When your tunnel WebSocket URL changes, you must update `VITE_WS_URL` in Netlify and trigger a new deployment for the change to take effect.
 
 ## Troubleshooting
