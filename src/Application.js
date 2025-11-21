@@ -86,10 +86,11 @@ export class Application {
       }
     });
 
-    // Mouse wheel for zoom
+    // Mouse wheel for zoom (or dolly when Shift is pressed)
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.cameraController.handleWheel(e.deltaY);
+      const isShiftPressed = e.shiftKey;
+      this.cameraController.handleWheel(e.deltaY, isShiftPressed);
     });
 
     // Touch events
