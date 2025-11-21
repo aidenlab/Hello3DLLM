@@ -9,7 +9,10 @@ export class CameraController {
     this.camera = null;
     this.minZoom = CONFIG.CAMERA.MIN_ZOOM;
     this.maxZoom = CONFIG.CAMERA.MAX_ZOOM;
+    this.minZoomAngle = CONFIG.CAMERA.ZOOM_ANGLE_MIN;
+    this.maxZoomAngle = CONFIG.CAMERA.ZOOM_ANGLE_MAX;
     this.zoomSpeed = CONFIG.CAMERA.ZOOM_SPEED;
+    this.zoomAngleSpeed = CONFIG.CAMERA.ZOOM_ANGLE_SPEED;
     
     // Touch pinch state
     this.initialDistance = 0;
@@ -28,9 +31,16 @@ export class CameraController {
     this.camera.position.z = CONFIG.CAMERA.INITIAL_Z;
   }
 
-  handleWheel(deltaY) {
-    const zoomDelta = deltaY > 0 ? this.zoomSpeed : -this.zoomSpeed;
-    this._applyZoom(zoomDelta);
+  handleWheel(deltaY, isShiftPressed = false) {
+    if (isShiftPressed) {
+      // Zooming: change camera zoom angle (FOV)
+      const zoomDelta = deltaY > 0 ? -this.zoomAngleSpeed : this.zoomAngleSpeed;
+      this._applyZoom(zoomDelta);
+    } else {
+      // Dollying: translate camera forward/backward (original behavior)
+      const dollyDelta = deltaY > 0 ? this.zoomSpeed : -this.zoomSpeed;
+      this._applyDolly(dollyDelta);
+    }
   }
 
   startPinchZoom(touch1, touch2) {
@@ -55,12 +65,24 @@ export class CameraController {
   }
 
   _applyZoom(zoomDelta) {
-    const newZ = this.camera.position.z + zoomDelta;
+    // Change camera zoom (affects FOV angle)
+    const newZoom = this.camera.zoom + zoomDelta;
+    this.camera.zoom = this._clampZoomAngle(newZoom);
+    this.camera.updateProjectionMatrix();
+  }
+
+  _applyDolly(dollyDelta) {
+    // Dollying: change camera position.z (original behavior)
+    const newZ = this.camera.position.z + dollyDelta;
     this.camera.position.z = this._clampZoom(newZ);
   }
 
   _clampZoom(value) {
     return Math.max(this.minZoom, Math.min(this.maxZoom, value));
+  }
+
+  _clampZoomAngle(value) {
+    return Math.max(this.minZoomAngle, Math.min(this.maxZoomAngle, value));
   }
 
   /**

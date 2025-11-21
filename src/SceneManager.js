@@ -17,6 +17,8 @@ export class SceneManager {
     this.model = null;
     this.keyLight = null;
     this.fillLight = null;
+    this.keyLightHelper = null;
+    this.fillLightHelper = null;
   }
 
   async initialize() {
@@ -54,17 +56,25 @@ export class SceneManager {
 
     // Key light - main light source
     this.keyLight = new AreaLight('key');
-    this.scene.add(this.keyLight.getLight());
-    // Add helper to visualize the key light
-    const keyLightHelper = new RectAreaLightHelper(this.keyLight.getLight());
-    this.keyLight.getLight().add(keyLightHelper);
+    this.scene.add(this.keyLight.getLight()); // Add parent group to scene
+    // Add helper to visualize the key light (attach to light object, not parent)
+    this.keyLightHelper = new RectAreaLightHelper(this.keyLight.getLightObject());
+    this.keyLight.getLightObject().add(this.keyLightHelper);
+    this.keyLight.setHelper(this.keyLightHelper);
+    
+    // Create highlight overlay for key light
+    this.keyLight.createHighlightOverlay();
 
     // Fill light - softer light to fill shadows
     this.fillLight = new AreaLight('fill');
-    this.scene.add(this.fillLight.getLight());
-    // Add helper to visualize the fill light
-    const fillLightHelper = new RectAreaLightHelper(this.fillLight.getLight());
-    this.fillLight.getLight().add(fillLightHelper);
+    this.scene.add(this.fillLight.getLight()); // Add parent group to scene
+    // Add helper to visualize the fill light (attach to light object, not parent)
+    this.fillLightHelper = new RectAreaLightHelper(this.fillLight.getLightObject());
+    this.fillLight.getLightObject().add(this.fillLightHelper);
+    this.fillLight.setHelper(this.fillLightHelper);
+    
+    // Create highlight overlay for fill light
+    this.fillLight.createHighlightOverlay();
   }
 
   render(camera) {
@@ -127,61 +137,230 @@ export class SceneManager {
   // Key light control methods
   setKeyLightIntensity(intensity) {
     if (this.keyLight) {
-      this.keyLight.getLight().intensity = intensity;
+      this.keyLight.getLightObject().intensity = intensity;
     }
   }
 
   setKeyLightPosition(x, y, z) {
     if (this.keyLight) {
-      this.keyLight.getLight().position.set(x, y, z);
-      // Re-orient toward target
+      // Convert world position to relative position (relative to model origin)
+      const origin = CONFIG.MODEL.ORIGIN;
+      const relativeX = x - origin.x;
+      const relativeY = y - origin.y;
+      const relativeZ = z - origin.z;
+      
+      // Set position relative to parent group
+      this.keyLight.getLightObject().position.set(relativeX, relativeY, relativeZ);
+      // Re-orient toward target (world coordinates)
       const target = CONFIG.LIGHTING.KEY_LIGHT.TARGET || { x: 0, y: 0, z: 0 };
-      this.keyLight.getLight().lookAt(target.x, target.y, target.z);
+      this.keyLight.getLightObject().lookAt(target.x, target.y, target.z);
     }
   }
 
   setKeyLightColor(color) {
     if (this.keyLight) {
       const hexColor = parseInt(color.replace('#', ''), 16);
-      this.keyLight.getLight().color.setHex(hexColor);
+      this.keyLight.getLightObject().color.setHex(hexColor);
+      // Update highlight overlay color to match
+      this.keyLight.updateHighlightColor();
     }
   }
 
   setKeyLightSize(width, height) {
     if (this.keyLight) {
-      this.keyLight.getLight().width = width;
-      this.keyLight.getLight().height = height;
+      this.keyLight.getLightObject().width = width;
+      this.keyLight.getLightObject().height = height;
     }
   }
 
   // Fill light control methods
   setFillLightIntensity(intensity) {
     if (this.fillLight) {
-      this.fillLight.getLight().intensity = intensity;
+      this.fillLight.getLightObject().intensity = intensity;
     }
   }
 
   setFillLightPosition(x, y, z) {
     if (this.fillLight) {
-      this.fillLight.getLight().position.set(x, y, z);
-      // Re-orient toward target
+      // Convert world position to relative position (relative to model origin)
+      const origin = CONFIG.MODEL.ORIGIN;
+      const relativeX = x - origin.x;
+      const relativeY = y - origin.y;
+      const relativeZ = z - origin.z;
+      
+      // Set position relative to parent group
+      this.fillLight.getLightObject().position.set(relativeX, relativeY, relativeZ);
+      // Re-orient toward target (world coordinates)
       const target = CONFIG.LIGHTING.FILL_LIGHT.TARGET || { x: 0, y: 0, z: 0 };
-      this.fillLight.getLight().lookAt(target.x, target.y, target.z);
+      this.fillLight.getLightObject().lookAt(target.x, target.y, target.z);
     }
   }
 
   setFillLightColor(color) {
     if (this.fillLight) {
       const hexColor = parseInt(color.replace('#', ''), 16);
-      this.fillLight.getLight().color.setHex(hexColor);
+      this.fillLight.getLightObject().color.setHex(hexColor);
+      // Update highlight overlay color to match
+      this.fillLight.updateHighlightColor();
     }
   }
 
   setFillLightSize(width, height) {
     if (this.fillLight) {
-      this.fillLight.getLight().width = width;
-      this.fillLight.getLight().height = height;
+      this.fillLight.getLightObject().width = width;
+      this.fillLight.getLightObject().height = height;
     }
+  }
+
+  // Key light swing methods
+  swingKeyLightUp() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(0, -swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingKeyLightDown() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(0, swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingKeyLightLeft() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(-swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  swingKeyLightRight() {
+    if (this.keyLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.keyLight.rotate(swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  // Fill light swing methods
+  swingFillLightUp() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(0, -swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingFillLightDown() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(0, swingAmountRadians); // Vertical rotation (X axis)
+    }
+  }
+
+  swingFillLightLeft() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(-swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  swingFillLightRight() {
+    if (this.fillLight) {
+      const swingAmountDegrees = CONFIG.INTERACTION.AREA_LIGHT_SWING_AMOUNT;
+      const swingAmountRadians = THREE.MathUtils.degToRad(swingAmountDegrees);
+      this.fillLight.rotate(swingAmountRadians, 0); // Horizontal rotation (Y axis)
+    }
+  }
+
+  // Key light walk methods (dolly in/out)
+  walkKeyLightIn() {
+    if (this.keyLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.keyLight.dolly(-walkAmount); // Negative moves toward origin
+    }
+  }
+
+  walkKeyLightOut() {
+    if (this.keyLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.keyLight.dolly(walkAmount); // Positive moves away from origin
+    }
+  }
+
+  // Fill light walk methods (dolly in/out)
+  walkFillLightIn() {
+    if (this.fillLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.fillLight.dolly(-walkAmount); // Negative moves toward origin
+    }
+  }
+
+  walkFillLightOut() {
+    if (this.fillLight) {
+      const walkAmount = CONFIG.INTERACTION.AREA_LIGHT_WALK_AMOUNT;
+      this.fillLight.dolly(walkAmount); // Positive moves away from origin
+    }
+  }
+
+  /**
+   * Gets array of pickable objects for ray picking (picker geometries)
+   * @returns {Array<THREE.Object3D>} Array of pickable objects
+   */
+  getAreaLightHelpers() {
+    const pickers = [];
+    if (this.keyLight && this.keyLight.getPickerGeometry()) {
+      pickers.push(this.keyLight.getPickerGeometry());
+    }
+    if (this.fillLight && this.fillLight.getPickerGeometry()) {
+      pickers.push(this.fillLight.getPickerGeometry());
+    }
+    return pickers;
+  }
+
+  /**
+   * Gets array of AreaLight instances
+   * @returns {Array<AreaLight>} Array of area light instances
+   */
+  getAreaLights() {
+    const lights = [];
+    if (this.keyLight) {
+      lights.push(this.keyLight);
+    }
+    if (this.fillLight) {
+      lights.push(this.fillLight);
+    }
+    return lights;
+  }
+
+  /**
+   * Identifies which area light corresponds to an intersection
+   * @param {Object} intersection - Intersection result from raycaster
+   * @returns {AreaLight|null} The corresponding area light or null
+   */
+  getHoveredAreaLight(intersection) {
+    if (!intersection || !intersection.object) {
+      return null;
+    }
+
+    const intersectedObject = intersection.object;
+    
+    // Check if intersection is with key light picker geometry
+    if (this.keyLight && intersectedObject === this.keyLight.getPickerGeometry()) {
+      return this.keyLight;
+    }
+    
+    // Check if intersection is with fill light picker geometry
+    if (this.fillLight && intersectedObject === this.fillLight.getPickerGeometry()) {
+      return this.fillLight;
+    }
+
+    return null;
   }
 }
 
