@@ -17,6 +17,8 @@ export class SceneManager {
     this.model = null;
     this.keyLight = null;
     this.fillLight = null;
+    this.keyLightHelper = null;
+    this.fillLightHelper = null;
   }
 
   async initialize() {
@@ -56,15 +58,23 @@ export class SceneManager {
     this.keyLight = new AreaLight('key');
     this.scene.add(this.keyLight.getLight()); // Add parent group to scene
     // Add helper to visualize the key light (attach to light object, not parent)
-    const keyLightHelper = new RectAreaLightHelper(this.keyLight.getLightObject());
-    this.keyLight.getLightObject().add(keyLightHelper);
+    this.keyLightHelper = new RectAreaLightHelper(this.keyLight.getLightObject());
+    this.keyLight.getLightObject().add(this.keyLightHelper);
+    this.keyLight.setHelper(this.keyLightHelper);
+    
+    // Create highlight overlay for key light
+    this.keyLight.createHighlightOverlay();
 
     // Fill light - softer light to fill shadows
     this.fillLight = new AreaLight('fill');
     this.scene.add(this.fillLight.getLight()); // Add parent group to scene
     // Add helper to visualize the fill light (attach to light object, not parent)
-    const fillLightHelper = new RectAreaLightHelper(this.fillLight.getLightObject());
-    this.fillLight.getLightObject().add(fillLightHelper);
+    this.fillLightHelper = new RectAreaLightHelper(this.fillLight.getLightObject());
+    this.fillLight.getLightObject().add(this.fillLightHelper);
+    this.fillLight.setHelper(this.fillLightHelper);
+    
+    // Create highlight overlay for fill light
+    this.fillLight.createHighlightOverlay();
   }
 
   render(camera) {
@@ -151,6 +161,8 @@ export class SceneManager {
     if (this.keyLight) {
       const hexColor = parseInt(color.replace('#', ''), 16);
       this.keyLight.getLightObject().color.setHex(hexColor);
+      // Update highlight overlay color to match
+      this.keyLight.updateHighlightColor();
     }
   }
 
@@ -188,6 +200,8 @@ export class SceneManager {
     if (this.fillLight) {
       const hexColor = parseInt(color.replace('#', ''), 16);
       this.fillLight.getLightObject().color.setHex(hexColor);
+      // Update highlight overlay color to match
+      this.fillLight.updateHighlightColor();
     }
   }
 
@@ -196,6 +210,61 @@ export class SceneManager {
       this.fillLight.getLightObject().width = width;
       this.fillLight.getLightObject().height = height;
     }
+  }
+
+  /**
+   * Gets array of pickable objects for ray picking (picker geometries)
+   * @returns {Array<THREE.Object3D>} Array of pickable objects
+   */
+  getAreaLightHelpers() {
+    const pickers = [];
+    if (this.keyLight && this.keyLight.getPickerGeometry()) {
+      pickers.push(this.keyLight.getPickerGeometry());
+    }
+    if (this.fillLight && this.fillLight.getPickerGeometry()) {
+      pickers.push(this.fillLight.getPickerGeometry());
+    }
+    return pickers;
+  }
+
+  /**
+   * Gets array of AreaLight instances
+   * @returns {Array<AreaLight>} Array of area light instances
+   */
+  getAreaLights() {
+    const lights = [];
+    if (this.keyLight) {
+      lights.push(this.keyLight);
+    }
+    if (this.fillLight) {
+      lights.push(this.fillLight);
+    }
+    return lights;
+  }
+
+  /**
+   * Identifies which area light corresponds to an intersection
+   * @param {Object} intersection - Intersection result from raycaster
+   * @returns {AreaLight|null} The corresponding area light or null
+   */
+  getHoveredAreaLight(intersection) {
+    if (!intersection || !intersection.object) {
+      return null;
+    }
+
+    const intersectedObject = intersection.object;
+    
+    // Check if intersection is with key light picker geometry
+    if (this.keyLight && intersectedObject === this.keyLight.getPickerGeometry()) {
+      return this.keyLight;
+    }
+    
+    // Check if intersection is with fill light picker geometry
+    if (this.fillLight && intersectedObject === this.fillLight.getPickerGeometry()) {
+      return this.fillLight;
+    }
+
+    return null;
   }
 }
 

@@ -1,7 +1,7 @@
 # Origin-Centered Area Lights
 
 ## Overview
-Restructure the area light system so that both key and fill lights rotate around the model's origin `(0, -0.5, 0)` instead of their own positions. This sets up the foundation for future quaternion-based rotation.
+Restructure the area light system so that both key and fill lights rotate around the model's origin `(0, -0.5, 0)` instead of their own positions. This sets up the foundation for future Euler angle-based rotation.
 
 ## Implementation Steps
 
@@ -31,7 +31,7 @@ Restructure the area light system so that both key and fill lights rotate around
 - The parent Object3D will be positioned at `(0, -0.5, 0)` (model origin)
 - Lights will be children of this parent, positioned relative to it
 - `lookAt()` will continue to use world coordinates `(0, 0, 0)` as target
-- Future rotation will be applied to the parent's quaternion, causing lights to orbit around the model origin
+- Future rotation will be applied to the parent's rotation (Euler angles), causing lights to orbit around the model origin
 - All existing functionality (position, intensity, color, size) will continue to work
 
 ## Files Modified
@@ -41,7 +41,8 @@ Restructure the area light system so that both key and fill lights rotate around
 - `src/Model.js` - Use model origin constant
 
 ## Future Work
-- Implement quaternion-based rotation methods for area lights
-- Rotation will be applied to the parent group's quaternion
+- Implement Euler angle-based rotation methods for area lights
+- Rotation will be applied to the parent group's rotation property (Euler angles)
 - Lights will orbit around the model origin while maintaining their lookAt target
+- Euler angles are simpler and sufficient for the constrained rotation interactions planned
 

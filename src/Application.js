@@ -2,6 +2,9 @@ import { SceneManager } from './SceneManager.js';
 import { CameraController } from './CameraController.js';
 import { RotationController } from './RotationController.js';
 import { WebSocketClient } from './WebSocketClient.js';
+import { RayPicker } from './RayPicker.js';
+import { InteractionModeManager } from './InteractionModeManager.js';
+import { CONFIG } from './constants.js';
 
 /**
  * Main application class that orchestrates the 3D scene and user interactions
@@ -34,6 +37,13 @@ export class Application {
     this.lastMouseTime = 0;
     this.mouseVelocity = { x: 0, y: 0 };
     
+    // Initialize ray picker and interaction mode manager
+    this.rayPicker = new RayPicker();
+    this.interactionModeManager = new InteractionModeManager();
+    this.currentHoveredAreaLight = null;
+    this.isAreaLightDragging = false;
+    this.areaLightDragStartPosition = { x: 0, y: 0 };
+    
     this._setupWebSocket();
     this._setupEventListeners();
     this._startAnimation();
@@ -45,18 +55,63 @@ export class Application {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      
+      // Check if we're in area light manipulation mode and hovering over a light
+      if (this.interactionModeManager.isAreaLightMode() && this.currentHoveredAreaLight) {
+        // Start area light rotation drag
+        this.isAreaLightDragging = true;
+        this.areaLightDragStartPosition = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      
+      // Only allow model rotation if in model rotation mode
+      if (!this.interactionModeManager.isModelRotationMode()) {
+        return;
+      }
+      
       this.lastMousePosition = { x: e.clientX, y: e.clientY };
       this.lastMouseTime = Date.now();
       this.mouseVelocity = { x: 0, y: 0 };
       this.rotationController.beginDrag({ x, y });
     });
 
+    // Separate mousemove handler for ray picking (runs regardless of drag state)
     this.canvas.addEventListener('mousemove', (e) => {
-      if (this.rotationController.isCurrentlyDragging()) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Update ray picker mouse position
+      this.rayPicker.updateMousePosition(x, y, rect.width, rect.height);
+      
+      // Perform ray picking for area light helpers
+      this._updateAreaLightHover();
+      
+      // Handle area light rotation drag
+      if (this.isAreaLightDragging && this.currentHoveredAreaLight) {
+        // Calculate mouse movement delta
+        const deltaX = e.clientX - this.areaLightDragStartPosition.x;
+        const deltaY = e.clientY - this.areaLightDragStartPosition.y;
         
+        // Apply rotation sensitivity
+        const sensitivity = CONFIG.INTERACTION.AREA_LIGHT_ROTATION_SENSITIVITY;
+        const rotationDeltaX = deltaX * sensitivity;
+        const rotationDeltaY = deltaY * sensitivity; // Positive Y (drag down) pulls light down
+        
+        // Rotate the area light
+        this.currentHoveredAreaLight.rotate(rotationDeltaX, rotationDeltaY);
+        
+        // Update drag start position for next frame
+        this.areaLightDragStartPosition = { x: e.clientX, y: e.clientY };
+        
+        // Trigger render
+        this.sceneManager.render(this.cameraController.getCamera());
+        return;
+      }
+      
+      // Handle drag update if dragging and in model rotation mode
+      if (this.rotationController.isCurrentlyDragging() && 
+          this.interactionModeManager.isModelRotationMode()) {
         // Calculate velocity
         const now = Date.now();
         const dt = Math.max(1, now - this.lastMouseTime); // Avoid division by zero
@@ -72,7 +127,15 @@ export class Application {
     });
 
     this.canvas.addEventListener('mouseup', (e) => {
-      if (this.rotationController.isCurrentlyDragging()) {
+      // End area light rotation drag
+      if (this.isAreaLightDragging) {
+        this.isAreaLightDragging = false;
+        return;
+      }
+      
+      // End model rotation drag
+      if (this.rotationController.isCurrentlyDragging() && 
+          this.interactionModeManager.isModelRotationMode()) {
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -81,16 +144,29 @@ export class Application {
     });
 
     this.canvas.addEventListener('mouseleave', () => {
+      // End area light rotation drag
+      if (this.isAreaLightDragging) {
+        this.isAreaLightDragging = false;
+      }
+      
+      // End model rotation drag
       if (this.rotationController.isCurrentlyDragging()) {
         this.rotationController.stopDrag();
       }
     });
 
     // Mouse wheel for zoom (or dolly when Shift is pressed)
+    // Mode-aware: only handle camera wheel when in model rotation mode
+    // Future: can be used for area light manipulation in area light mode
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const isShiftPressed = e.shiftKey;
-      this.cameraController.handleWheel(e.deltaY, isShiftPressed);
+      
+      // For now, only handle camera wheel in model rotation mode
+      // Future: add area light manipulation in area light mode
+      if (this.interactionModeManager.isModelRotationMode()) {
+        const isShiftPressed = e.shiftKey;
+        this.cameraController.handleWheel(e.deltaY, isShiftPressed);
+      }
     });
 
     // Touch events
@@ -138,13 +214,15 @@ export class Application {
       this.cameraController.startPinchZoom(touch1, touch2);
       this.rotationController.stopDrag(); // Disable rotation during pinch
     } else if (e.touches.length === 1) {
-      // Single touch - enable rotation
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = this.canvas.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      this.rotationController.beginDrag({ x, y });
+      // Single touch - enable rotation only if in model rotation mode
+      if (this.interactionModeManager.isModelRotationMode()) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = this.canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        this.rotationController.beginDrag({ x, y });
+      }
     }
   }
 
@@ -290,6 +368,41 @@ export class Application {
       notificationElement.classList.add('hidden');
       this._toolNotificationTimeout = null;
     }, 3000);
+  }
+
+  /**
+   * Updates area light hover state based on ray picking
+   */
+  _updateAreaLightHover() {
+    const camera = this.cameraController.getCamera();
+    const helpers = this.sceneManager.getAreaLightHelpers();
+    
+    // Perform ray picking
+    const intersections = this.rayPicker.getIntersections(camera, helpers, true);
+    
+    // Find the first intersection with an area light helper
+    let hoveredAreaLight = null;
+    if (intersections.length > 0) {
+      hoveredAreaLight = this.sceneManager.getHoveredAreaLight(intersections[0]);
+    }
+    
+    // Update mode and highlights based on hover state
+    if (hoveredAreaLight !== this.currentHoveredAreaLight) {
+      // Clear previous highlight
+      if (this.currentHoveredAreaLight) {
+        this.currentHoveredAreaLight.setHighlighted(false);
+      }
+      
+      // Set new highlight
+      if (hoveredAreaLight) {
+        hoveredAreaLight.setHighlighted(true);
+        this.interactionModeManager.setMode(this.interactionModeManager.AREA_LIGHT_MANIPULATION);
+      } else {
+        this.interactionModeManager.setMode(this.interactionModeManager.MODEL_ROTATION);
+      }
+      
+      this.currentHoveredAreaLight = hoveredAreaLight;
+    }
   }
 
   _startAnimation() {

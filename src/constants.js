@@ -80,6 +80,7 @@ export const CONFIG = {
     INTERACTION: {
         ROTATION_SENSITIVITY: 0.01,
         PINCH_ZOOM_SENSITIVITY: 0.01,
+        AREA_LIGHT_ROTATION_SENSITIVITY: 0.005,  // Sensitivity for area light rotation
     },
 };
 
