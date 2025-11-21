@@ -205,5 +205,44 @@ export class AreaLight {
   getRotation() {
     return this.parentGroup ? this.parentGroup.rotation : new THREE.Euler();
   }
+
+  /**
+   * Moves the light along the axis from the model origin to the light's current position
+   * (dollying in/out from the origin)
+   * @param {number} delta - Movement delta (positive moves away from origin, negative moves toward)
+   */
+  dolly(delta) {
+    if (!this.areaLight || !this.parentGroup) {
+      return;
+    }
+
+    // Get current position relative to parent (which is at model origin)
+    const currentPosition = this.areaLight.position.clone();
+    const currentDistance = currentPosition.length();
+    
+    // Calculate direction vector from origin to light position
+    let direction;
+    if (currentDistance > 0.0001) {
+      // Normalize to get direction
+      direction = currentPosition.clone().normalize();
+    } else {
+      // If light is at origin, use a default direction (forward along Z)
+      direction = new THREE.Vector3(0, 0, 1);
+    }
+    
+    // Calculate movement vector along the direction
+    const movement = direction.multiplyScalar(delta);
+    
+    // Calculate new position
+    const newPosition = currentPosition.add(movement);
+    
+    // Update light position
+    this.areaLight.position.copy(newPosition);
+    
+    // After moving, update the light's lookAt to maintain target orientation
+    const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
+    const targetPosition = config.TARGET || { x: 0, y: 0, z: 0 };
+    this.areaLight.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);
+  }
 }
 

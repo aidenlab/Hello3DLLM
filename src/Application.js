@@ -156,13 +156,22 @@ export class Application {
     });
 
     // Mouse wheel for zoom (or dolly when Shift is pressed)
-    // Mode-aware: only handle camera wheel when in model rotation mode
-    // Future: can be used for area light manipulation in area light mode
+    // Mode-aware: handle camera wheel in model rotation mode, area light dolly in area light mode
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       
-      // For now, only handle camera wheel in model rotation mode
-      // Future: add area light manipulation in area light mode
+      // Handle area light dolly when in area light manipulation mode and hovering over a light
+      if (this.interactionModeManager.isAreaLightMode() && this.currentHoveredAreaLight) {
+        const sensitivity = CONFIG.INTERACTION.AREA_LIGHT_DOLLY_SENSITIVITY;
+        // deltaY > 0 means scrolling down (move closer), deltaY < 0 means scrolling up (move away)
+        const dollyDelta = e.deltaY > 0 ? -sensitivity : sensitivity;
+        this.currentHoveredAreaLight.dolly(dollyDelta);
+        // Trigger render
+        this.sceneManager.render(this.cameraController.getCamera());
+        return;
+      }
+      
+      // Handle camera wheel in model rotation mode
       if (this.interactionModeManager.isModelRotationMode()) {
         const isShiftPressed = e.shiftKey;
         this.cameraController.handleWheel(e.deltaY, isShiftPressed);

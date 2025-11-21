@@ -81,6 +81,7 @@ export const CONFIG = {
         ROTATION_SENSITIVITY: 0.01,
         PINCH_ZOOM_SENSITIVITY: 0.01,
         AREA_LIGHT_ROTATION_SENSITIVITY: 0.005,  // Sensitivity for area light rotation
+        AREA_LIGHT_DOLLY_SENSITIVITY: 0.1,  // Sensitivity for area light dolly (movement along axis)
     },
 };
 
