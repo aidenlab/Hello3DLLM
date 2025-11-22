@@ -57,6 +57,20 @@ A 3D interactive model visualization built with Three.js, enhanced with Model Co
 
 ## Connecting MCP Clients
 
+### Quick Comparison: MCP Client Options
+
+| Client | Cost | Works with Localhost | Requires Public URL | Best For |
+|--------|------|---------------------|---------------------|----------|
+| **MCP Inspector** | Free | ✅ Yes | ❌ No | Testing & debugging tools |
+| **Cursor** | Free | ✅ Yes | ❌ No | Full IDE with AI assistant |
+| **VS Code + MCP** | Free | ✅ Yes | ❌ No | VS Code users |
+| **Claude Code** | Free | ✅ Yes | ❌ No | CLI-based testing |
+| **Continue.dev** | Free | ✅ Yes | ❌ No | VS Code extension users |
+| **Claude Desktop** | Free | ✅ Yes (subprocess mode) | ✅ Yes (HTTP mode + tunnel) | Desktop app with Claude |
+| **ChatGPT** | Paid (Plus) | ❌ No | ✅ Yes (tunnel needed) | OpenAI integration |
+
+**Recommendation for Testing:** Start with **MCP Inspector** (free, no setup needed) or **Cursor** (free IDE with built-in MCP support).
+
 ### Local Clients (Cursor, VS Code, Claude Code)
 
 These clients work with `localhost`, so no additional setup is needed.
@@ -97,6 +111,22 @@ Add to your MCP configuration:
 ```bash
 claude mcp add --transport http 3d-model-server http://localhost:3000/mcp
 ```
+
+#### Continue.dev
+
+Continue.dev is a free VS Code extension that provides AI coding assistance with MCP support.
+
+1. **Install Continue.dev extension** in VS Code
+2. **Configure MCP server** in Continue.dev settings:
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "url": "http://localhost:3000/mcp"
+       }
+     }
+   }
+   ```
 
 #### MCP Inspector
 
@@ -169,25 +199,269 @@ The MCP Inspector is a developer tool for testing and debugging MCP servers. It 
 npx @modelcontextprotocol/inspector https://your-tunnel-url.ngrok-free.app/mcp
 ```
 
-### ChatGPT (Requires Public Access)
+### Remote Clients (Require Public Access)
 
-ChatGPT requires a publicly accessible server. See [ChatGPT Setup](#chatgpt-setup) for detailed instructions.
+These clients require a publicly accessible server (use ngrok or localtunnel). See [ChatGPT Setup](#chatgpt-setup) for tunneling instructions.
+
+#### Claude Desktop
+
+Claude Desktop is Anthropic's free desktop application that supports MCP servers.
+
+Claude Desktop supports **two connection modes**:
+
+1. **Subprocess Mode** (Recommended for localhost) - Claude Desktop manages the server process automatically
+2. **HTTP/SSE Mode** (For remote/tunneled servers) - Connect to an already-running server
+
+**Prerequisites:**
+- Claude Desktop installed (download from https://claude.ai/download)
+- For HTTP/SSE mode: ngrok or localtunnel installed
+
+---
+
+### Option 1: Subprocess Mode (Recommended for Localhost)
+
+This is the simplest setup - Claude Desktop will start and manage your server automatically.
+
+**Step-by-Step Setup:**
+
+1. **Make sure your server is NOT already running:**
+   - If you have `node server.js` running in a terminal, stop it (Ctrl+C)
+   - Claude Desktop will start the server automatically
+   - Having both running will cause port conflicts
+
+2. **Locate Claude Desktop configuration file:**
+
+   **macOS:**
+   ```
+   ~/Library/Application Support/Claude/claude_desktop_config.json
+   ```
+   
+   **Windows:**
+   ```
+   %APPDATA%\Claude\claude_desktop_config.json
+   ```
+   
+   **Linux:**
+   ```
+   ~/.config/Claude/claude_desktop_config.json
+   ```
+
+3. **Edit the configuration file:**
+
+   If the file doesn't exist, create it. Add the `mcpServers` section with subprocess configuration:
+   
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "command": "node",
+         "args": ["/Users/turner/MCPDevelopment/Hello3DLLM/server.js"]
+       }
+     }
+   }
+   ```
+   
+   ⚠️ **Important:** 
+   - Replace `/Users/turner/MCPDevelopment/Hello3DLLM/server.js` with the **absolute path** to your `server.js` file
+   - Use `node` command (or full path like `/Users/turner/.nvm/versions/node/v22.14.0/bin/node` if using nvm)
+   - Make sure no other instance of the server is running
+
+4. **Restart Claude Desktop:**
+   - Quit Claude Desktop completely
+   - Reopen Claude Desktop
+   - Claude Desktop will automatically start your MCP server
+
+5. **Verify the connection:**
+   - In Claude Desktop, ask: "What tools do you have available?"
+   - Claude should list your MCP tools (e.g., `change_model_color`, `change_model_size`, etc.)
+   - Check Claude Desktop logs if there are issues: `~/Library/Logs/Claude/mcp-server-3d-model-server.log` (macOS)
+
+6. **Start your 3D app (optional but recommended):**
+   ```bash
+   npm run dev
+   ```
+   This allows you to see changes in real-time when Claude calls the MCP tools.
+
+7. **Connect to the 3D app:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
+   - Claude will provide a connection URL with your session ID (e.g., `http://localhost:5173?sessionId=stdio-session`)
+   - Copy and paste the URL into your browser
+   - The browser will connect to your Claude Desktop session
+
+**Troubleshooting Subprocess Mode:**
+
+- **Port already in use error:**
+  - Make sure you've stopped any manually running server instances
+  - Check if port 3000 or 3001 is in use: `lsof -i :3000` or `lsof -i :3001` (macOS/Linux)
+  - Kill the process if needed: `kill -9 <PID>`
+  - Or use: `lsof -ti :3000 :3001 | xargs kill -9`
+
+- **Server not starting:**
+  - Verify the path to `server.js` is correct and absolute
+  - Check that `node` command is in your PATH, or use full path to node executable
+  - Check Claude Desktop logs: `~/Library/Logs/Claude/mcp-server-3d-model-server.log` (macOS)
+
+- **Tools not appearing:**
+  - Check Claude Desktop logs for errors
+  - Verify the server started successfully
+  - Restart Claude Desktop completely
+
+---
+
+### Option 2: HTTP/SSE Mode (For Remote/Tunneled Servers)
+
+Use this mode if you want to run the server manually or connect via a tunnel.
+
+**Step-by-Step Setup:**
+
+1. **Start your MCP server manually:**
+   ```bash
+   node server.js
+   ```
+   Server should be running on `http://localhost:3000/mcp`
+
+2. **Create a tunnel for your MCP server (if connecting remotely):**
+
+   **Option A: Using ngrok**
+   ```bash
+   ngrok http 3000
+   ```
+   Copy the HTTPS URL shown (e.g., `https://abc123.ngrok-free.app`)
+   
+   **Option B: Using localtunnel**
+   ```bash
+   lt --port 3000 --subdomain hello3dllm-mcpserver
+   ```
+   Creates URL: `https://hello3dllm-mcpserver.loca.lt`
+   
+   ⚠️ **Important:** Keep this tunnel running while using Claude Desktop!
+
+3. **Locate Claude Desktop configuration file:**
+
+   **macOS:**
+   ```
+   ~/Library/Application Support/Claude/claude_desktop_config.json
+   ```
+   
+   **Windows:**
+   ```
+   %APPDATA%\Claude\claude_desktop_config.json
+   ```
+   
+   **Linux:**
+   ```
+   ~/.config/Claude/claude_desktop_config.json
+   ```
+
+4. **Edit the configuration file:**
+
+   If the file doesn't exist, create it. Add or update the `mcpServers` section:
+   
+   **For ngrok:**
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "url": "https://abc123.ngrok-free.app/mcp",
+         "transport": "sse"
+       }
+     }
+   }
+   ```
+   
+   **For localtunnel:**
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "url": "https://hello3dllm-mcpserver.loca.lt/mcp",
+         "transport": "sse"
+       }
+     }
+   }
+   ```
+   
+   ⚠️ **Important Notes:**
+   - **Endpoint:** Use `/mcp` (NOT `/sse`) - your server handles SSE streams on `/mcp`
+   - **Transport:** Use `"transport": "sse"` (Server-Sent Events) - this matches your server's `StreamableHTTPServerTransport`
+   - The endpoint `/mcp` handles both POST requests (initialization/tool calls) and GET requests (SSE streams)
+   - Claude Desktop's example shows `/sse`, but that's just a generic example - your server uses `/mcp`
+   
+   ⚠️ **Important:** 
+   - Replace the URL with your actual tunnel URL
+   - **Include `/mcp` at the end** of the URL
+   - Use `https://` (not `http://`) for the tunnel URL
+
+5. **Restart Claude Desktop:**
+   - Quit Claude Desktop completely
+   - Reopen Claude Desktop
+   - The MCP server should now be connected
+
+6. **Verify the connection:**
+   - In Claude Desktop, ask: "What tools do you have available?"
+   - Claude should list your MCP tools (e.g., `change_model_color`, `change_model_size`, etc.)
+   - If tools aren't showing, check:
+     - Tunnel is still running
+     - Configuration file has correct URL with `/mcp` suffix
+     - Claude Desktop was fully restarted
+
+7. **Start your 3D app (optional but recommended):**
+   ```bash
+   npm run dev
+   ```
+   This allows you to see changes in real-time when Claude calls the MCP tools.
+
+8. **Connect to the 3D app:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
+   - Claude will provide a connection URL with your session ID
+   - Copy and paste the URL into your browser
+   - The browser will connect to your Claude Desktop session
+
+**Troubleshooting:**
+
+- **Tools not appearing:** 
+  - Verify tunnel is running (`ngrok http 3000` or `lt --port 3000`)
+  - Check configuration file JSON syntax is valid
+  - Ensure URL includes `/mcp` at the end
+  - Restart Claude Desktop completely
+
+- **Connection errors:**
+  - Verify MCP server is running (`node server.js`)
+  - Check tunnel URL is accessible in browser: `https://your-tunnel-url/mcp`
+  - Ensure tunnel hasn't expired (ngrok free tier URLs change on restart)
+
+- **Changes not visible:**
+  - Make sure your 3D app is running (`npm run dev`)
+  - Verify browser is connected to the correct session
+  - Check browser console for WebSocket connection errors
+
+**Note:** If using ngrok free tier, your tunnel URL will change each time you restart ngrok. You'll need to update the configuration file and restart Claude Desktop when this happens. For a more stable URL, consider using localtunnel with a custom subdomain or ngrok's paid plan with a custom domain.
+
+**Recommendation:** For local development, use **Subprocess Mode** (Option 1) - it's simpler and doesn't require tunneling.
+
+#### ChatGPT (Requires Paid Tier)
+
+ChatGPT requires a publicly accessible server and a paid Plus subscription with developer mode enabled. See [ChatGPT Setup](#chatgpt-setup) for detailed instructions.
 
 ## Connecting to the 3D App
 
 ### For Single-User Sessions
 
-1. **Add the MCP tool** in ChatGPT (or your MCP client)
-2. **Ask ChatGPT**: "How do I connect to the 3D app?" or "Get browser URL"
-3. **ChatGPT will provide a connection URL** with your session ID embedded
+1. **Add the MCP tool** in your MCP client (ChatGPT, Claude Desktop, etc.)
+2. **Ask your AI assistant**: "How do I connect to the 3D app?" or "Get browser URL"
+3. **Your AI assistant will provide a connection URL** with your session ID embedded
 4. **Copy and paste the URL** into your browser
-5. The browser will automatically connect to your ChatGPT session
+5. The browser will automatically connect to your session
 
-The connection URL format: `https://your-app.netlify.app?sessionId=<your-session-id>`
+**Connection URL formats:**
+- **Claude Desktop (STDIO mode)**: `http://localhost:5173?sessionId=stdio-session`
+- **ChatGPT/HTTP mode**: `https://your-app.netlify.app?sessionId=<your-session-id>`
 
 ### For Multi-User Sessions
 
-Each ChatGPT session gets its own unique session ID. When you ask for the connection URL, ChatGPT provides a URL specific to your session. Multiple users can connect simultaneously, each with their own isolated browser instance.
+Each MCP client session gets its own unique session ID. When you ask for the connection URL, the AI assistant provides a URL specific to your session. Multiple users can connect simultaneously, each with their own isolated browser instance.
+
+**Note:** In STDIO mode (Claude Desktop subprocess), all sessions use the same `stdio-session` ID, so multiple browser tabs will share the same session.
 
 ## Using the MCP Tools
 
@@ -770,10 +1044,13 @@ Deploy both front-end and backend together on a single platform:
 
 ## Architecture
 
+The server supports **two transport modes**:
+
+### STDIO Mode (Subprocess - Claude Desktop)
 ```
 ┌─────────────────┐         ┌──────────────┐         ┌─────────────┐
-│   MCP Client    │────────▶│  MCP Server   │────────▶│  WebSocket  │
-│  (AI Assistant) │         │  (server.js)  │         │   Server    │
+│ Claude Desktop  │──stdin▶│  MCP Server   │────────▶│  WebSocket  │
+│  (Subprocess)   │◀─stdout│  (server.js)  │         │   Server    │
 └─────────────────┘         └──────────────┘         └─────────────┘
                                       │                       │
                                       │              ┌────────▼────────┐
@@ -787,10 +1064,34 @@ Deploy both front-end and backend together on a single platform:
                                                      └─────────────────┘
 ```
 
-1. **MCP Client** sends tool call requests to the MCP Server
-2. **MCP Server** processes the request and broadcasts commands via WebSocket
-3. **Browser App** receives WebSocket messages and updates the model
-4. Changes are immediately visible in the 3D scene
+### HTTP/SSE Mode (ChatGPT, Manual)
+```
+┌─────────────────┐         ┌──────────────┐         ┌─────────────┐
+│   MCP Client    │──HTTP──▶│  MCP Server   │────────▶│  WebSocket  │
+│  (AI Assistant) │──SSE───▶│  (server.js)  │         │   Server    │
+└─────────────────┘         └──────────────┘         └─────────────┘
+                                      │                       │
+                                      │              ┌────────▼────────┐
+                                      │              │  Browser App    │
+                                      │              │  (Application)  │
+                                      │              └────────┬────────┘
+                                      │                       │
+                                      │              ┌────────▼────────┐
+                                      └──────────────▶│  SceneManager   │
+                                                     │  (Model Control) │
+                                                     └─────────────────┘
+```
+
+**How it works:**
+1. **MCP Client** sends tool call requests to the MCP Server (via STDIO or HTTP/SSE)
+2. **MCP Server** auto-detects the transport mode and processes requests accordingly
+3. **MCP Server** broadcasts commands via WebSocket to connected browser clients
+4. **Browser App** receives WebSocket messages and updates the model
+5. Changes are immediately visible in the 3D scene
+
+**Transport Detection:**
+- **STDIO Mode**: Automatically detected when `stdin` is not a TTY (subprocess)
+- **HTTP Mode**: Automatically detected when `stdin` is a TTY (manual execution)
 
 ## Project Structure
 
@@ -913,21 +1214,47 @@ See the `change_background_color` tool implementation in the codebase for a comp
 
 ### WebSocket Connection Issues
 
-- Ensure MCP server is running (`npm run mcp:server`)
-- Check that port 3001 is not in use
+- Ensure MCP server is running (`npm run mcp:server` or via Claude Desktop)
+- Check that port 3001 is not in use: `lsof -i :3001`
 - Check browser console for connection errors
+- Verify browser is connected with correct session ID
 
 ### MCP Client Connection Issues
 
-- Verify MCP server is running on port 3000
+**For HTTP Mode (ChatGPT, Manual):**
+- Verify MCP server is running on port 3000: `lsof -i :3000`
 - Check endpoint URL: `http://localhost:3000/mcp`
 - Ensure no firewall is blocking the connection
+
+**For STDIO Mode (Claude Desktop Subprocess):**
+- Check Claude Desktop logs: `~/Library/Logs/Claude/mcp-server-3d-model-server.log` (macOS)
+- Verify server path in configuration is correct and absolute
+- Ensure no other server instance is running (ports 3000/3001 must be free)
+- Restart Claude Desktop completely
+
+### Port Conflicts
+
+If you see "port already in use" errors:
+```bash
+# Check what's using the ports
+lsof -i :3000 -i :3001
+
+# Kill processes on those ports
+lsof -ti :3000 :3001 | xargs kill -9
+
+# Or kill any running server.js processes
+pkill -f "node.*server.js"
+```
+
+**Important:** When using Claude Desktop in subprocess mode, don't run `node server.js` manually - let Claude Desktop manage it.
 
 ### Model Not Updating
 
 - Check browser console for WebSocket errors
-- Verify browser app is running and connected
-- Ensure WebSocket server is running on port 3001
+- Verify browser app is running (`npm run dev`)
+- Ensure browser is connected with the correct session ID
+- Verify WebSocket server is running on port 3001
+- In STDIO mode, check that browser URL includes `?sessionId=stdio-session`
 
 ## License
 

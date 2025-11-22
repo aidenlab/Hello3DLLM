@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
 import cors from 'cors';
@@ -165,8 +166,16 @@ const sessionContext = new AsyncLocalStorage();
 function routeToCurrentSession(command) {
   const sessionId = sessionContext.getStore();
   if (sessionId) {
-    console.log(`Routing command to session: ${sessionId}`, command.type);
+    console.error(`Routing command to session: ${sessionId}`, command.type);
     sendToSession(sessionId, command);
+  } else if (isStdioMode) {
+    // In STDIO mode, broadcast to all connected clients
+    console.error('Routing command in STDIO mode - broadcasting to all clients:', command.type);
+    if (wsClients.size > 0) {
+      broadcastToClients(command);
+    } else {
+      console.error('No WebSocket clients connected. Command not routed:', command.type);
+    }
   } else {
     console.warn('Tool handler called but no session context available. Command not routed.');
     console.warn('Current request session ID:', sessionId);
@@ -771,7 +780,14 @@ mcpServer.registerTool(
     inputSchema: {}
   },
   async () => {
-    const sessionId = sessionContext.getStore();
+    // In STDIO mode, use the fixed STDIO session ID
+    // In HTTP mode, get session ID from context
+    let sessionId;
+    if (isStdioMode) {
+      sessionId = STDIO_SESSION_ID;
+    } else {
+      sessionId = sessionContext.getStore();
+    }
     
     if (!sessionId) {
       return {
@@ -811,18 +827,48 @@ app.use(
   })
 );
 
-// Map to store transports by session ID
+// Detect if we're running in STDIO mode (subprocess) or HTTP mode
+// If stdin is NOT a TTY, we're being run as a subprocess (STDIO mode)
+// If stdin IS a TTY, we're running manually (HTTP mode)
+const isStdioMode = !process.stdin.isTTY;
+
+// Map to store transports by session ID (for HTTP mode)
 const transports = {};
 
-// Handle POST requests (initialization and tool calls)
+// For STDIO mode, use a fixed session ID since we don't have HTTP sessions
+const STDIO_SESSION_ID = 'stdio-session';
+
+// If running in STDIO mode (subprocess), set up STDIO transport
+if (isStdioMode) {
+  console.error('Running in STDIO mode (subprocess)');
+  const stdioTransport = new StdioServerTransport();
+  
+  // Connect MCP server to STDIO transport
+  mcpServer.connect(stdioTransport).catch((error) => {
+    console.error('Error connecting MCP server to STDIO transport:', error);
+    process.exit(1);
+  });
+  
+  // In STDIO mode, route tool calls to all connected WebSocket clients
+  // We'll modify the tool handlers to broadcast instead of using session context
+  console.error('MCP server connected via STDIO transport');
+  console.error('WebSocket server listening on ws://localhost:3001');
+  console.error(`Browser URL configured: ${BROWSER_URL}`);
+  console.error(`STDIO session ID: ${STDIO_SESSION_ID}`);
+} else {
+  console.error('Running in HTTP/SSE mode');
+}
+
+// Handle POST requests (initialization and tool calls) - only in HTTP mode
+if (!isStdioMode) {
 app.post('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
   
-  // Log request for debugging
+  // Log request for debugging (use stderr to avoid interfering with MCP protocol on stdout)
   if (sessionId) {
-    console.log(`Received MCP request for session: ${sessionId}, method: ${req.body?.method || 'unknown'}`);
+    console.error(`Received MCP request for session: ${sessionId}, method: ${req.body?.method || 'unknown'}`);
   } else {
-    console.log(`Received MCP request (no session), method: ${req.body?.method || 'unknown'}, body:`, JSON.stringify(req.body).substring(0, 200));
+    console.error(`Received MCP request (no session), method: ${req.body?.method || 'unknown'}, body:`, JSON.stringify(req.body).substring(0, 200));
   }
   
   try {
@@ -835,11 +881,11 @@ app.post('/mcp', async (req, res) => {
       // Session ID provided but transport doesn't exist - session expired or lost
       // Allow re-initialization if this is an initialize request
       if (isInitializeRequest(req.body)) {
-        console.log(`Session ${sessionId} not found, creating new transport for re-initialization`);
+        console.error(`Session ${sessionId} not found, creating new transport for re-initialization`);
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => sessionId, // Reuse the same session ID
           onsessioninitialized: (sid) => {
-            console.log(`MCP session re-initialized: ${sid}`);
+            console.error(`MCP session re-initialized: ${sid}`);
             transports[sid] = transport;
           }
         });
@@ -847,7 +893,7 @@ app.post('/mcp', async (req, res) => {
         transport.onclose = () => {
           const sid = transport.sessionId;
           if (sid && transports[sid]) {
-            console.log(`MCP session closed: ${sid}`);
+            console.error(`MCP session closed: ${sid}`);
             delete transports[sid];
           }
         };
@@ -869,11 +915,11 @@ app.post('/mcp', async (req, res) => {
       }
     } else if (!sessionId && isInitializeRequest(req.body)) {
       // Create new transport for initialization
-      console.log('Creating new transport for initialization');
+      console.error('Creating new transport for initialization');
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sid) => {
-          console.log(`MCP session initialized: ${sid}`);
+          console.error(`MCP session initialized: ${sid}`);
           transports[sid] = transport;
         }
       });
@@ -881,7 +927,7 @@ app.post('/mcp', async (req, res) => {
       transport.onclose = () => {
         const sid = transport.sessionId;
         if (sid && transports[sid]) {
-          console.log(`MCP session closed: ${sid}`);
+          console.error(`MCP session closed: ${sid}`);
           delete transports[sid];
         }
       };
@@ -911,12 +957,12 @@ app.post('/mcp', async (req, res) => {
     // This ensures tool handlers can access the sessionId even when called asynchronously
     try {
       await sessionContext.run(sessionId || null, async () => {
-        console.log(`Setting request context for session: ${sessionId || 'null'}`);
+        console.error(`Setting request context for session: ${sessionId || 'null'}`);
 
         // Detect tool calls and notify WebSocket clients
         if (req.body?.method === 'tools/call' && req.body?.params?.name) {
           const toolName = req.body.params.name;
-          console.log(`MCP tool called: ${toolName} (session: ${sessionId || 'unknown'})`);
+          console.error(`MCP tool called: ${toolName} (session: ${sessionId || 'unknown'})`);
           
           // Send tool call notification to specific session's browser client
           if (sessionId) {
@@ -935,7 +981,7 @@ app.post('/mcp', async (req, res) => {
         // The sessionContext will maintain the sessionId across all async operations
         await transport.handleRequest(req, res, req.body);
         
-        console.log(`Request handling complete for session: ${sessionId || 'null'}`);
+        console.error(`Request handling complete for session: ${sessionId || 'null'}`);
       });
     } catch (error) {
       console.error('Error handling MCP POST request:', error);
@@ -966,8 +1012,10 @@ app.post('/mcp', async (req, res) => {
     }
   }
 });
+}
 
-// Handle GET requests for SSE streams
+// Handle GET requests for SSE streams - only in HTTP mode
+if (!isStdioMode) {
 app.get('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
   
@@ -981,9 +1029,9 @@ app.get('/mcp', async (req, res) => {
     const lastEventId = req.headers['last-event-id'];
     
     if (lastEventId) {
-      console.log(`Client reconnecting with Last-Event-ID: ${lastEventId}`);
+      console.error(`Client reconnecting with Last-Event-ID: ${lastEventId}`);
     } else {
-      console.log(`Establishing new SSE stream for session ${sessionId}`);
+      console.error(`Establishing new SSE stream for session ${sessionId}`);
     }
     
     await transport.handleRequest(req, res);
@@ -994,8 +1042,10 @@ app.get('/mcp', async (req, res) => {
     }
   }
 });
+}
 
-// Handle DELETE requests for session termination
+// Handle DELETE requests for session termination - only in HTTP mode
+if (!isStdioMode) {
 app.delete('/mcp', async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
   
@@ -1005,7 +1055,7 @@ app.delete('/mcp', async (req, res) => {
   }
 
   try {
-    console.log(`Received session termination request for session ${sessionId}`);
+    console.error(`Received session termination request for session ${sessionId}`);
     const transport = transports[sessionId];
     await transport.handleRequest(req, res);
   } catch (error) {
@@ -1015,34 +1065,37 @@ app.delete('/mcp', async (req, res) => {
     }
   }
 });
-
-// Serve static files from dist folder (for unified deployment)
-// This must be after all API routes
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const distPath = join(__dirname, 'dist');
-
-if (existsSync(distPath)) {
-  app.use(express.static(distPath));
-  // Serve index.html for all non-API routes (SPA routing)
-  app.get('*', (req, res) => {
-    // Don't serve index.html for MCP routes (shouldn't reach here, but safety check)
-    if (req.path.startsWith('/mcp')) {
-      return res.status(404).send('Not found');
-    }
-    res.sendFile(join(distPath, 'index.html'));
-  });
 }
 
-// Start HTTP server
-app.listen(MCP_PORT, () => {
-  console.log(`MCP Server listening on http://localhost:${MCP_PORT}/mcp`);
-  console.log(`WebSocket server listening on ws://localhost:${WS_PORT}`);
-  console.log(`Browser URL configured: ${BROWSER_URL}`);
+// Serve static files from dist folder (for unified deployment) - only in HTTP mode
+if (!isStdioMode) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const distPath = join(__dirname, 'dist');
+
   if (existsSync(distPath)) {
-    console.log(`Serving static files from ${distPath}`);
+    app.use(express.static(distPath));
+    // Serve index.html for all non-API routes (SPA routing)
+    app.get('*', (req, res) => {
+      // Don't serve index.html for MCP routes (shouldn't reach here, but safety check)
+      if (req.path.startsWith('/mcp')) {
+        return res.status(404).send('Not found');
+      }
+      res.sendFile(join(distPath, 'index.html'));
+    });
   }
-});
+
+  // Start HTTP server
+  app.listen(MCP_PORT, () => {
+    // Use console.error for startup messages to avoid interfering with MCP protocol on stdout
+    console.error(`MCP Server listening on http://localhost:${MCP_PORT}/mcp`);
+    console.error(`WebSocket server listening on ws://localhost:${WS_PORT}`);
+    console.error(`Browser URL configured: ${BROWSER_URL}`);
+    if (existsSync(distPath)) {
+      console.error(`Serving static files from ${distPath}`);
+    }
+  });
+}
 
 // Handle server shutdown
 process.on('SIGINT', async () => {
