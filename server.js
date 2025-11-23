@@ -10,8 +10,50 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { z } from 'zod';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { appleCrayonColorsHexStrings } from './src/utils/color/color.js';
+
+// Load environment variables from .env file if it exists
+// Using manual parsing instead of dotenv package to avoid any stdout output
+// that would interfere with STDIO MCP protocol communication
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(__dirname, '.env');
+
+if (existsSync(envPath)) {
+  try {
+    // Manually parse .env file to avoid any potential stdout output from dotenv package
+    const envContent = readFileSync(envPath, 'utf-8');
+    const lines = envContent.split('\n');
+    
+    for (const line of lines) {
+      // Skip comments and empty lines
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      
+      // Parse KEY=VALUE format
+      const match = trimmed.match(/^([^=:#]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        let value = match[2].trim();
+        
+        // Remove quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        
+        // Only set if not already in environment (don't override)
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch (error) {
+    // Completely silent - .env file is optional and errors should not break the server
+    // Any output here would interfere with STDIO MCP protocol communication
+  }
+}
 
 // Parse command line arguments
 function parseCommandLineArgs() {
@@ -28,13 +70,20 @@ Usage: node server.js [options]
 
 Options:
   --browser-url, -u <url>    Browser URL for the 3D app (e.g., https://your-app.netlify.app)
-                             Overrides BROWSER_URL environment variable
+                             Overrides BROWSER_URL environment variable and .env file
   --help, -h                 Show this help message
 
 Environment Variables:
   BROWSER_URL                Browser URL (used if --browser-url not provided)
+                             Can also be set in .env file
   MCP_PORT                   MCP server port (default: 3000)
   WS_PORT                    WebSocket server port (default: 3001)
+
+Configuration Priority:
+  1. Command line argument (--browser-url)
+  2. Environment variable (BROWSER_URL)
+  3. .env file (BROWSER_URL)
+  4. Default (http://localhost:5173)
 
 Examples:
   node server.js --browser-url https://my-app.netlify.app
@@ -51,7 +100,9 @@ const cliArgs = parseCommandLineArgs();
 const MCP_PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3000;
 const WS_PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 3001;
 // Browser URL for the 3D app (Netlify deployment)
-// Priority: 1) Command line argument (--browser-url), 2) Environment variable (BROWSER_URL), 3) Default (localhost)
+// Priority: 1) Command line argument (--browser-url), 2) Environment variable (BROWSER_URL), 
+//           3) .env file (BROWSER_URL), 4) Default (localhost)
+// Note: dotenv.config() was called earlier, so process.env.BROWSER_URL may come from .env file
 const BROWSER_URL = cliArgs.browserUrl || process.env.BROWSER_URL || 'http://localhost:5173';
 
 /**
@@ -95,7 +146,7 @@ const wsClients = new Map();
 const wss = new WebSocketServer({ port: WS_PORT });
 
 wss.on('connection', (ws) => {
-  console.log('Browser client connected (waiting for session ID)');
+  console.warn('Browser client connected (waiting for session ID)');
   let sessionId = null;
 
   // Handle incoming messages from clients
@@ -107,7 +158,7 @@ wss.on('connection', (ws) => {
       if (data.type === 'registerSession' && data.sessionId) {
         sessionId = data.sessionId;
         wsClients.set(sessionId, ws);
-        console.log(`Browser client registered with session ID: ${sessionId}`);
+        console.warn(`Browser client registered with session ID: ${sessionId}`);
         
         // Send confirmation
         ws.send(JSON.stringify({
@@ -116,7 +167,7 @@ wss.on('connection', (ws) => {
         }));
       } else if (sessionId) {
         // Handle other messages (for testing/debugging)
-        console.log(`Received command from client (session ${sessionId}):`, data);
+        console.warn(`Received command from client (session ${sessionId}):`, data);
         // Note: We no longer broadcast client-to-client messages
         // If needed, this could route to a specific session
       } else {
@@ -133,10 +184,10 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     if (sessionId) {
-      console.log(`Browser client disconnected (session: ${sessionId})`);
+      console.warn(`Browser client disconnected (session: ${sessionId})`);
       wsClients.delete(sessionId);
     } else {
-      console.log('Browser client disconnected (unregistered)');
+      console.warn('Browser client disconnected (unregistered)');
     }
   });
 
@@ -1099,7 +1150,7 @@ if (!isStdioMode) {
 
 // Handle server shutdown
 process.on('SIGINT', async () => {
-  console.log('Shutting down servers...');
+  console.warn('Shutting down servers...');
   
   // Close all WebSocket connections
   wss.close();

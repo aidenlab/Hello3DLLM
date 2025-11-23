@@ -184,7 +184,21 @@ This is the simplest setup - Claude Desktop will start and manage your server au
 
 If you want to use your Netlify-hosted app instead of running locally:
 
-1. **Set BROWSER_URL environment variable** (so server generates Netlify URLs):
+1. **Create a `.env` file** (Recommended - works automatically with Claude Desktop):
+   
+   Create a `.env` file in your project root directory:
+   ```bash
+   # In your project root (e.g., /Users/turner/MCPDevelopment/Hello3DLLM/.env)
+   BROWSER_URL=https://your-app.netlify.app
+   ```
+   
+   This is the **recommended approach** for Claude Desktop because:
+   - Claude Desktop starts the server automatically, so you can't easily pass command-line arguments
+   - Environment variables set in your shell profile won't be available to Claude Desktop's subprocess
+   - The `.env` file is automatically loaded by `server.js` when it starts
+   - No need to modify shell profiles or restart terminals
+   
+   **Alternative:** If you prefer using environment variables, you can set `BROWSER_URL` in your shell profile:
    
    **macOS/Linux** - Add to your shell profile (`~/.zshrc` or `~/.bashrc`):
    ```bash
@@ -196,30 +210,48 @@ If you want to use your Netlify-hosted app instead of running locally:
    ```powershell
    $env:BROWSER_URL="https://your-app.netlify.app"
    ```
+   
+   **Configuration Priority:** The server uses this priority order:
+   1. Command line argument (`--browser-url`)
+   2. Environment variable (`BROWSER_URL`)
+   3. `.env` file (`BROWSER_URL`)
+   4. Default (`http://localhost:5173`)
 
 2. **Create WebSocket tunnel** (so Netlify can connect to your local WebSocket):
-   ```bash
-   # Using ngrok
-   ngrok http 3001
    
-   # Or using localtunnel
+   **Important:** You must use a tunnel with a specific subdomain so the URL remains consistent. Use **localtunnel** (not ngrok) because:
+   - Localtunnel's free tier allows you to specify a custom subdomain
+   - Ngrok's free tier does NOT allow custom subdomains (URLs change on every restart)
+   - A stable URL is required for Netlify environment variables
+   
+   Run localtunnel with the specific subdomain:
+   ```bash
    lt --port 3001 --subdomain hello3dllm-websocket
    ```
-   Copy the tunnel URL (e.g., `wss://hello3dllm-websocket.loca.lt`)
+   
+   This creates the tunnel URL: `https://hello3dllm-websocket.loca.lt`
+   
+   **Note:** Keep this tunnel running while using the app. The tunnel URL will remain stable as long as you use the same subdomain.
+   
+   **Why not ngrok?** Ngrok's free tier doesn't support custom subdomains, so the URL changes every time you restart it. This would require updating Netlify's `VITE_WS_URL` environment variable each time, making it impractical for this use case.
 
 3. **Configure Netlify:**
    - Go to your Netlify site settings
-   - Add environment variable: `VITE_WS_URL=wss://your-websocket-tunnel-url`
+   - Add environment variable: `VITE_WS_URL=wss://hello3dllm-websocket.loca.lt`
+   - **Important:** Use `wss://` (WebSocket Secure) protocol, not `https://`
    - Redeploy your site
 
-4. **Restart Claude Desktop** (to pick up the BROWSER_URL environment variable)
+4. **Restart Claude Desktop** (to pick up the configuration from `.env` file or environment variable)
 
 5. **Connect:**
    - Ask Claude Desktop: "How do I connect to the 3D app?"
    - It will provide a Netlify URL (e.g., `https://your-app.netlify.app?sessionId=stdio-session`)
    - Open that URL in your browser
 
-**Note:** Keep the WebSocket tunnel running while using the app. The tunnel URL may change if you restart it.
+**Important Notes:**
+- **Keep the tunnel running:** The `lt --port 3001 --subdomain hello3dllm-websocket` command must stay running while you're using the app
+- **Stable URL:** Using the specific subdomain ensures the URL (`https://hello3dllm-websocket.loca.lt`) remains consistent
+- **If tunnel disconnects:** If the tunnel stops, restart it with the same command and ensure Netlify has the correct `VITE_WS_URL` environment variable set
 
 ---
 
@@ -412,4 +444,5 @@ For local development, use **Subprocess Mode** (Option 1) - it's simpler and doe
 - See the main [README.md](../README.md) for more information about available MCP tools
 - Check [CHATGPT_SETUP.md](./CHATGPT_SETUP.md) for ChatGPT setup (requires tunneling)
 - Review the project structure and architecture in the main README
+
 
