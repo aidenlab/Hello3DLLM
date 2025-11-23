@@ -1,0 +1,415 @@
+# Claude Desktop Setup Guide
+
+Claude Desktop is Anthropic's free desktop application that supports MCP servers. This guide covers setting up the Hello3DLLM MCP server with Claude Desktop.
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- npm
+- Claude Desktop installed (download from https://claude.ai/download)
+- For HTTP/SSE mode: ngrok or localtunnel installed (optional)
+
+---
+
+## Clean Up Existing Processes (Start with a Clean Slate)
+
+Before setting up Claude Desktop, it's important to ensure ports 3000 and 3001 are free. These ports are commonly used and may already be occupied by previous server instances or other applications.
+
+### Check for Processes on Ports 3000 and 3001
+
+**macOS/Linux:**
+```bash
+# Check what's using port 3000
+lsof -i :3000
+
+# Check what's using port 3001
+lsof -i :3001
+
+# Check both ports at once
+lsof -i :3000 -i :3001
+```
+
+**Windows (PowerShell):**
+```powershell
+# Check what's using port 3000
+netstat -ano | findstr :3000
+
+# Check what's using port 3001
+netstat -ano | findstr :3001
+```
+
+**Windows (Command Prompt):**
+```cmd
+netstat -ano | findstr :3000
+netstat -ano | findstr :3001
+```
+
+### Kill Processes on Ports 3000 and 3001
+
+**macOS/Linux:**
+```bash
+# Kill processes on both ports (recommended)
+lsof -ti :3000 :3001 | xargs kill -9
+
+# Or kill them individually
+# First, find the PID (Process ID) from lsof output, then:
+kill -9 <PID>
+
+# Alternative: Kill all node processes (use with caution)
+pkill -f "node.*server.js"
+```
+
+**Windows (PowerShell):**
+```powershell
+# Find and kill process on port 3000
+$port3000 = netstat -ano | findstr :3000 | Select-String "\s+(\d+)$" | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1
+if ($port3000) { taskkill /PID $port3000 /F }
+
+# Find and kill process on port 3001
+$port3001 = netstat -ano | findstr :3001 | Select-String "\s+(\d+)$" | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1
+if ($port3001) { taskkill /PID $port3001 /F }
+```
+
+**Windows (Command Prompt):**
+```cmd
+# Find the PID from netstat output, then:
+taskkill /PID <PID> /F
+
+# Or kill all node processes (use with caution)
+taskkill /IM node.exe /F
+```
+
+### Verify Ports are Free
+
+After killing processes, verify the ports are free:
+
+**macOS/Linux:**
+```bash
+# Should return nothing if ports are free
+lsof -i :3000 -i :3001
+```
+
+**Windows:**
+```cmd
+# Should return nothing if ports are free
+netstat -ano | findstr ":3000 :3001"
+```
+
+---
+
+## Connection Modes
+
+Claude Desktop supports **two connection modes**:
+
+1. **Subprocess Mode** (Recommended for localhost) - Claude Desktop manages the server process automatically
+2. **HTTP/SSE Mode** (For remote/tunneled servers) - Connect to an already-running server
+
+---
+
+## Option 1: Subprocess Mode (Recommended for Localhost)
+
+This is the simplest setup - Claude Desktop will start and manage your server automatically.
+
+### Step-by-Step Setup
+
+1. **Clean up any existing processes:**
+   - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section above
+   - Make sure ports 3000 and 3001 are free
+   - If you have `node server.js` running in a terminal, stop it (Ctrl+C)
+   - Claude Desktop will start the server automatically
+   - Having both running will cause port conflicts
+
+2. **Locate Claude Desktop configuration file:**
+
+   **macOS:**
+   ```
+   ~/Library/Application Support/Claude/claude_desktop_config.json
+   ```
+   
+   **Windows:**
+   ```
+   %APPDATA%\Claude\claude_desktop_config.json
+   ```
+   
+   **Linux:**
+   ```
+   ~/.config/Claude/claude_desktop_config.json
+   ```
+
+3. **Edit the configuration file:**
+
+   If the file doesn't exist, create it. Add the `mcpServers` section with subprocess configuration:
+   
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "command": "node",
+         "args": ["/Users/turner/MCPDevelopment/Hello3DLLM/server.js"]
+       }
+     }
+   }
+   ```
+   
+   ⚠️ **Important:** 
+   - Replace `/Users/turner/MCPDevelopment/Hello3DLLM/server.js` with the **absolute path** to your `server.js` file
+   - Use `node` command (or full path like `/Users/turner/.nvm/versions/node/v22.14.0/bin/node` if using nvm)
+   - Make sure no other instance of the server is running
+
+4. **Restart Claude Desktop:**
+   - Quit Claude Desktop completely
+   - Reopen Claude Desktop
+   - Claude Desktop will automatically start your MCP server
+
+5. **Verify the connection:**
+   - In Claude Desktop, ask: "What tools do you have available?"
+   - Claude should list your MCP tools (e.g., `change_model_color`, `change_model_size`, etc.)
+   - Check Claude Desktop logs if there are issues: `~/Library/Logs/Claude/mcp-server-3d-model-server.log` (macOS)
+
+6. **Start your 3D app (optional but recommended):**
+   ```bash
+   npm run dev
+   ```
+   This allows you to see changes in real-time when Claude calls the MCP tools.
+
+7. **Connect to the 3D app:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
+   - Claude will provide a connection URL with your session ID (e.g., `http://localhost:5173?sessionId=stdio-session`)
+   - Copy and paste the URL into your browser
+   - The browser will connect to your Claude Desktop session
+
+---
+
+### Using Netlify-Hosted App with Claude Desktop
+
+If you want to use your Netlify-hosted app instead of running locally:
+
+1. **Set BROWSER_URL environment variable** (so server generates Netlify URLs):
+   
+   **macOS/Linux** - Add to your shell profile (`~/.zshrc` or `~/.bashrc`):
+   ```bash
+   export BROWSER_URL=https://your-app.netlify.app
+   ```
+   Then restart your terminal or run: `source ~/.zshrc`
+   
+   **Windows** - Set system environment variable or use PowerShell:
+   ```powershell
+   $env:BROWSER_URL="https://your-app.netlify.app"
+   ```
+
+2. **Create WebSocket tunnel** (so Netlify can connect to your local WebSocket):
+   ```bash
+   # Using ngrok
+   ngrok http 3001
+   
+   # Or using localtunnel
+   lt --port 3001 --subdomain hello3dllm-websocket
+   ```
+   Copy the tunnel URL (e.g., `wss://hello3dllm-websocket.loca.lt`)
+
+3. **Configure Netlify:**
+   - Go to your Netlify site settings
+   - Add environment variable: `VITE_WS_URL=wss://your-websocket-tunnel-url`
+   - Redeploy your site
+
+4. **Restart Claude Desktop** (to pick up the BROWSER_URL environment variable)
+
+5. **Connect:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?"
+   - It will provide a Netlify URL (e.g., `https://your-app.netlify.app?sessionId=stdio-session`)
+   - Open that URL in your browser
+
+**Note:** Keep the WebSocket tunnel running while using the app. The tunnel URL may change if you restart it.
+
+---
+
+### Troubleshooting Subprocess Mode
+
+#### Port Already in Use Error
+- See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section above for detailed commands
+- Make sure you've stopped any manually running server instances
+- Check if port 3000 or 3001 is in use and kill any processes using those ports
+- **macOS/Linux:** `lsof -ti :3000 :3001 | xargs kill -9`
+- **Windows:** Use the PowerShell or Command Prompt commands from the cleanup section
+
+#### Server Not Starting
+- Verify the path to `server.js` is correct and absolute
+- Check that `node` command is in your PATH, or use full path to node executable
+- Check Claude Desktop logs: `~/Library/Logs/Claude/mcp-server-3d-model-server.log` (macOS)
+
+#### Tools Not Appearing
+- Check Claude Desktop logs for errors
+- Verify the server started successfully
+- Restart Claude Desktop completely
+
+#### Netlify App Not Connecting
+- Verify WebSocket tunnel is running
+- Check `VITE_WS_URL` is set correctly in Netlify (use `wss://` protocol)
+- Ensure tunnel URL matches what's configured in Netlify
+- Check browser console for WebSocket connection errors
+
+---
+
+## Option 2: HTTP/SSE Mode (For Remote/Tunneled Servers)
+
+Use this mode if you want to run the server manually or connect via a tunnel.
+
+### Step-by-Step Setup
+
+1. **Clean up any existing processes:**
+   - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section above
+   - Make sure ports 3000 and 3001 are free before starting
+
+2. **Start your MCP server manually:**
+   ```bash
+   node server.js
+   ```
+   Server should be running on `http://localhost:3000/mcp`
+
+3. **Create a tunnel for your MCP server (if connecting remotely):**
+
+   **Option A: Using ngrok**
+   ```bash
+   ngrok http 3000
+   ```
+   Copy the HTTPS URL shown (e.g., `https://abc123.ngrok-free.app`)
+   
+   **Option B: Using localtunnel**
+   ```bash
+   lt --port 3000 --subdomain hello3dllm-mcpserver
+   ```
+   Creates URL: `https://hello3dllm-mcpserver.loca.lt`
+   
+   ⚠️ **Important:** Keep this tunnel running while using Claude Desktop!
+
+4. **Locate Claude Desktop configuration file:**
+
+   **macOS:**
+   ```
+   ~/Library/Application Support/Claude/claude_desktop_config.json
+   ```
+   
+   **Windows:**
+   ```
+   %APPDATA%\Claude\claude_desktop_config.json
+   ```
+   
+   **Linux:**
+   ```
+   ~/.config/Claude/claude_desktop_config.json
+   ```
+
+5. **Edit the configuration file:**
+
+   If the file doesn't exist, create it. Add or update the `mcpServers` section:
+   
+   **For ngrok:**
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "url": "https://abc123.ngrok-free.app/mcp",
+         "transport": "sse"
+       }
+     }
+   }
+   ```
+   
+   **For localtunnel:**
+   ```json
+   {
+     "mcpServers": {
+       "3d-model-server": {
+         "url": "https://hello3dllm-mcpserver.loca.lt/mcp",
+         "transport": "sse"
+       }
+     }
+   }
+   ```
+   
+   ⚠️ **Important Notes:**
+   - **Endpoint:** Use `/mcp` (NOT `/sse`) - your server handles SSE streams on `/mcp`
+   - **Transport:** Use `"transport": "sse"` (Server-Sent Events) - this matches your server's `StreamableHTTPServerTransport`
+   - The endpoint `/mcp` handles both POST requests (initialization/tool calls) and GET requests (SSE streams)
+   - Claude Desktop's example shows `/sse`, but that's just a generic example - your server uses `/mcp`
+   
+   ⚠️ **Important:** 
+   - Replace the URL with your actual tunnel URL
+   - **Include `/mcp` at the end** of the URL
+   - Use `https://` (not `http://`) for the tunnel URL
+
+6. **Restart Claude Desktop:**
+   - Quit Claude Desktop completely
+   - Reopen Claude Desktop
+   - The MCP server should now be connected
+
+7. **Verify the connection:**
+   - In Claude Desktop, ask: "What tools do you have available?"
+   - Claude should list your MCP tools (e.g., `change_model_color`, `change_model_size`, etc.)
+   - If tools aren't showing, check:
+     - Tunnel is still running
+     - Configuration file has correct URL with `/mcp` suffix
+     - Claude Desktop was fully restarted
+
+8. **Start your 3D app (optional but recommended):**
+   ```bash
+   npm run dev
+   ```
+   This allows you to see changes in real-time when Claude calls the MCP tools.
+
+9. **Connect to the 3D app:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
+   - Claude will provide a connection URL with your session ID
+   - Copy and paste the URL into your browser
+   - The browser will connect to your Claude Desktop session
+
+---
+
+### Troubleshooting HTTP/SSE Mode
+
+#### Tools Not Appearing
+- Verify tunnel is running (`ngrok http 3000` or `lt --port 3000`)
+- Check configuration file JSON syntax is valid
+- Ensure URL includes `/mcp` at the end
+- Restart Claude Desktop completely
+
+#### Connection Errors
+- Verify MCP server is running (`node server.js`)
+- Check tunnel URL is accessible in browser: `https://your-tunnel-url/mcp`
+- Ensure tunnel hasn't expired (ngrok free tier URLs change on restart)
+
+#### Changes Not Visible
+- Make sure your 3D app is running (`npm run dev`)
+- Verify browser is connected to the correct session
+- Check browser console for WebSocket connection errors
+
+---
+
+## Using the MCP Tools
+
+Once connected, ask Claude Desktop to manipulate the model using natural language:
+
+- **Change color**: "Change the model to red" or "Make it blue"
+- **Change size**: "Make the model bigger" or "Set size to 2.5"
+- **Scale**: "Stretch horizontally" or "Make it tall and thin"
+- **Background**: "Change background to black"
+- **Combined**: "Make a red model that's tall and thin"
+
+Claude will automatically call the appropriate MCP tools, and changes appear in real-time in your browser.
+
+---
+
+## Recommendation
+
+For local development, use **Subprocess Mode** (Option 1) - it's simpler and doesn't require tunneling.
+
+**Note:** If using ngrok free tier, your tunnel URL will change each time you restart ngrok. You'll need to update the configuration file and restart Claude Desktop when this happens. For a more stable URL, consider using localtunnel with a custom subdomain or ngrok's paid plan with a custom domain.
+
+---
+
+## Next Steps
+
+- See the main [README.md](../README.md) for more information about available MCP tools
+- Check [CHATGPT_SETUP.md](./CHATGPT_SETUP.md) for ChatGPT setup (requires tunneling)
+- Review the project structure and architecture in the main README
+

@@ -288,6 +288,47 @@ This is the simplest setup - Claude Desktop will start and manage your server au
    - Copy and paste the URL into your browser
    - The browser will connect to your Claude Desktop session
 
+**Using Netlify-Hosted App with Claude Desktop:**
+
+If you want to use your Netlify-hosted app instead of running locally:
+
+1. **Set BROWSER_URL environment variable** (so server generates Netlify URLs):
+   
+   **macOS/Linux** - Add to your shell profile (`~/.zshrc` or `~/.bashrc`):
+   ```bash
+   export BROWSER_URL=https://your-app.netlify.app
+   ```
+   Then restart your terminal or run: `source ~/.zshrc`
+   
+   **Windows** - Set system environment variable or use PowerShell:
+   ```powershell
+   $env:BROWSER_URL="https://your-app.netlify.app"
+   ```
+
+2. **Create WebSocket tunnel** (so Netlify can connect to your local WebSocket):
+   ```bash
+   # Using ngrok
+   ngrok http 3001
+   
+   # Or using localtunnel
+   lt --port 3001 --subdomain hello3dllm-websocket
+   ```
+   Copy the tunnel URL (e.g., `wss://hello3dllm-websocket.loca.lt`)
+
+3. **Configure Netlify:**
+   - Go to your Netlify site settings
+   - Add environment variable: `VITE_WS_URL=wss://your-websocket-tunnel-url`
+   - Redeploy your site
+
+4. **Restart Claude Desktop** (to pick up the BROWSER_URL environment variable)
+
+5. **Connect:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?"
+   - It will provide a Netlify URL (e.g., `https://your-app.netlify.app?sessionId=stdio-session`)
+   - Open that URL in your browser
+
+**Note:** Keep the WebSocket tunnel running while using the app. The tunnel URL may change if you restart it.
+
 **Troubleshooting Subprocess Mode:**
 
 - **Port already in use error:**
@@ -305,6 +346,12 @@ This is the simplest setup - Claude Desktop will start and manage your server au
   - Check Claude Desktop logs for errors
   - Verify the server started successfully
   - Restart Claude Desktop completely
+
+- **Netlify app not connecting:**
+  - Verify WebSocket tunnel is running
+  - Check `VITE_WS_URL` is set correctly in Netlify (use `wss://` protocol)
+  - Ensure tunnel URL matches what's configured in Netlify
+  - Check browser console for WebSocket connection errors
 
 ---
 
