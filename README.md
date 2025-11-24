@@ -284,7 +284,7 @@ This is the simplest setup - Claude Desktop will start and manage your server au
 
 7. **Connect to the 3D app:**
    - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
-   - Claude will provide a connection URL with your session ID (e.g., `http://localhost:5173?sessionId=stdio-session`)
+   - Claude will provide a connection URL with your unique session ID (e.g., `http://localhost:5173?sessionId=<unique-uuid>`)
    - Copy and paste the URL into your browser
    - The browser will connect to your Claude Desktop session
 
@@ -324,7 +324,7 @@ If you want to use your Netlify-hosted app instead of running locally:
 
 5. **Connect:**
    - Ask Claude Desktop: "How do I connect to the 3D app?"
-   - It will provide a Netlify URL (e.g., `https://your-app.netlify.app?sessionId=stdio-session`)
+   - It will provide a Netlify URL with your unique session ID (e.g., `https://your-app.netlify.app?sessionId=<unique-uuid>`)
    - Open that URL in your browser
 
 **Note:** Keep the WebSocket tunnel running while using the app. The tunnel URL may change if you restart it.
@@ -501,14 +501,14 @@ ChatGPT requires a publicly accessible server and a paid Plus subscription with 
 5. The browser will automatically connect to your session
 
 **Connection URL formats:**
-- **Claude Desktop (STDIO mode)**: `http://localhost:5173?sessionId=stdio-session`
+- **Claude Desktop (STDIO mode)**: `http://localhost:5173?sessionId=<unique-uuid>`
 - **ChatGPT/HTTP mode**: `https://your-app.netlify.app?sessionId=<your-session-id>`
 
 ### For Multi-User Sessions
 
 Each MCP client session gets its own unique session ID. When you ask for the connection URL, the AI assistant provides a URL specific to your session. Multiple users can connect simultaneously, each with their own isolated browser instance.
 
-**Note:** In STDIO mode (Claude Desktop subprocess), all sessions use the same `stdio-session` ID, so multiple browser tabs will share the same session.
+**Note:** In STDIO mode (Claude Desktop subprocess), each process instance generates a unique UUID session ID at startup, ensuring that different Claude Desktop users get isolated sessions.
 
 ## Using the MCP Tools
 
@@ -1301,7 +1301,7 @@ pkill -f "node.*server.js"
 - Verify browser app is running (`npm run dev`)
 - Ensure browser is connected with the correct session ID
 - Verify WebSocket server is running on port 3001
-- In STDIO mode, check that browser URL includes `?sessionId=stdio-session`
+- In STDIO mode, check that browser URL includes `?sessionId=<unique-uuid>` (each process gets a unique session ID)
 
 ## License
 

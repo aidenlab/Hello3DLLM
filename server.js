@@ -220,12 +220,17 @@ function routeToCurrentSession(command) {
     console.error(`Routing command to session: ${sessionId}`, command.type);
     sendToSession(sessionId, command);
   } else if (isStdioMode) {
-    // In STDIO mode, broadcast to all connected clients
-    console.error('Routing command in STDIO mode - broadcasting to all clients:', command.type);
-    if (wsClients.size > 0) {
-      broadcastToClients(command);
+    // In STDIO mode, route to the unique STDIO session ID
+    if (STDIO_SESSION_ID) {
+      console.error(`Routing command in STDIO mode to session: ${STDIO_SESSION_ID}`, command.type);
+      sendToSession(STDIO_SESSION_ID, command);
     } else {
-      console.error('No WebSocket clients connected. Command not routed:', command.type);
+      console.error('Routing command in STDIO mode - no session ID available, broadcasting to all clients:', command.type);
+      if (wsClients.size > 0) {
+        broadcastToClients(command);
+      } else {
+        console.error('No WebSocket clients connected. Command not routed:', command.type);
+      }
     }
   } else {
     console.warn('Tool handler called but no session context available. Command not routed.');
@@ -831,7 +836,7 @@ mcpServer.registerTool(
     inputSchema: {}
   },
   async () => {
-    // In STDIO mode, use the fixed STDIO session ID
+    // In STDIO mode, use the unique STDIO session ID generated at startup
     // In HTTP mode, get session ID from context
     let sessionId;
     if (isStdioMode) {
@@ -886,11 +891,16 @@ const isStdioMode = !process.stdin.isTTY;
 // Map to store transports by session ID (for HTTP mode)
 const transports = {};
 
-// For STDIO mode, use a fixed session ID since we don't have HTTP sessions
-const STDIO_SESSION_ID = 'stdio-session';
+// For STDIO mode, generate a unique session ID for each process instance
+// This ensures each Claude Desktop user gets their own unique session
+let STDIO_SESSION_ID = null;
 
 // If running in STDIO mode (subprocess), set up STDIO transport
 if (isStdioMode) {
+  // Generate a unique session ID for this STDIO connection
+  // Each time Claude Desktop starts the server, it's a new process, so we get a new unique ID
+  STDIO_SESSION_ID = randomUUID();
+  
   console.error('Running in STDIO mode (subprocess)');
   const stdioTransport = new StdioServerTransport();
   

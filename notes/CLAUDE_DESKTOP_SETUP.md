@@ -227,9 +227,10 @@ This is the simplest setup - Claude Desktop will start and manage your server au
 
 8. **Connect to the 3D app:**
    - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
-   - Claude will provide a Netlify URL with your session ID (e.g., `https://your-app.netlify.app?sessionId=stdio-session`)
+   - Claude will provide a Netlify URL with your unique session ID (e.g., `https://your-app.netlify.app?sessionId=<unique-uuid>`)
    - Copy and paste the URL into your browser
    - The browser will connect to your Claude Desktop session
+   - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
 
 **Important Notes:**
 - **Keep the tunnel running:** The `lt --port 3001 --subdomain hello3dllm-websocket` command must stay running while you're using the app
@@ -258,8 +259,9 @@ If you prefer to use a local development server instead of the Netlify-hosted ap
 
 4. **Connect:**
    - Ask Claude Desktop: "How do I connect to the 3D app?"
-   - It will provide a localhost URL (e.g., `http://localhost:5173?sessionId=stdio-session`)
+   - It will provide a localhost URL with your unique session ID (e.g., `http://localhost:5173?sessionId=<unique-uuid>`)
    - Open that URL in your browser
+   - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
 
 **Note:** When using localhost, you don't need to set up a WebSocket tunnel since the browser connects directly to your local WebSocket server.
 
@@ -431,9 +433,10 @@ Use this mode if you want to run the server manually or connect via a tunnel.
 
 9. **Connect to the 3D app:**
    - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
-   - Claude will provide a Netlify URL with your session ID (e.g., `https://your-app.netlify.app?sessionId=stdio-session`)
+   - Claude will provide a Netlify URL with your unique session ID (e.g., `https://your-app.netlify.app?sessionId=<unique-uuid>`)
    - Copy and paste the URL into your browser
    - The browser will connect to your Claude Desktop session
+   - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
 
 **Note:** If you prefer to use localhost instead, see the [Using Localhost Instead of Netlify](#using-localhost-instead-of-netlify-optional) section below.
 
