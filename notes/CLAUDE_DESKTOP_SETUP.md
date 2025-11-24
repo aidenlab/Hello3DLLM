@@ -7,9 +7,8 @@ Claude Desktop is Anthropic's free desktop application that supports MCP servers
 - Node.js (v18 or higher)
 - npm
 - Claude Desktop installed (download from https://claude.ai/download)
-- **localtunnel** installed (required for default Netlify setup): `npm install -g localtunnel`
-- A Netlify-hosted deployment of the 3D app (default behavior)
-- For localhost usage: Optional - see [Using Localhost Instead of Netlify](#using-localhost-instead-of-netlify-optional) section
+- **Default setup:** Uses localhost (no additional setup required)
+- **For Netlify setup (optional/advanced):** Requires localtunnel and Netlify deployment - see [Using Netlify Instead of Localhost](#using-netlify-instead-of-localhost-optional) section
 
 ---
 
@@ -168,15 +167,37 @@ This is the simplest setup - Claude Desktop will start and manage your server au
    - Claude should list your MCP tools (e.g., `change_model_color`, `change_model_size`, etc.)
    - Check Claude Desktop logs if there are issues: `~/Library/Logs/Claude/mcp-server-3d-model-server.log` (macOS)
 
-6. **Set up Netlify-hosted app (default behavior):**
-   
-   By default, the MCP server connects to the Netlify-hosted version of the 3D app. This requires setting up a WebSocket tunnel using localtunnel.
-   
-   **a. Create a `.env` file** (if not already present):
-   
-   Create a `.env` file in your project root directory:
+6. **Start your local 3D app:**
    ```bash
-   # In your project root (e.g., /Users/turner/MCPDevelopment/Hello3DLLM/.env)
+   npm run dev
+   ```
+   This starts the development server on `http://localhost:5173`
+   - The `.env` file (created automatically) defaults to `BROWSER_URL=http://localhost:5173`
+   - No additional configuration needed for localhost setup
+
+7. **Connect to the 3D app:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
+   - Claude will provide a localhost URL with your unique session ID (e.g., `http://localhost:5173?sessionId=<unique-uuid>`)
+   - Copy and paste the URL into your browser
+   - The browser will connect to your Claude Desktop session
+   - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
+
+**Default Configuration:**
+- The `.env` file defaults to `BROWSER_URL=http://localhost:5173`
+- No WebSocket tunnel needed for localhost (browser connects directly to `ws://localhost:3001`)
+- Simple setup - just run `npm run dev` and connect!
+
+---
+
+### Using Netlify Instead of Localhost (Optional/Advanced)
+
+⚠️ **Note:** The default setup uses localhost, which is simpler and doesn't require tunneling. Netlify setup is optional and more complex.
+
+If you want to use your Netlify-hosted app instead of running locally:
+
+1. **Update `.env` file** in your project root:
+   ```bash
+   # Change BROWSER_URL to your Netlify URL
    BROWSER_URL=https://your-app.netlify.app
    ```
    
@@ -194,12 +215,12 @@ This is the simplest setup - Claude Desktop will start and manage your server au
    3. `.env` file (`BROWSER_URL`)
    4. Default (`http://localhost:5173`)
 
-   **b. Install localtunnel** (if not already installed):
+2. **Install localtunnel** (if not already installed):
    ```bash
    npm install -g localtunnel
    ```
 
-   **c. Create WebSocket tunnel** (so Netlify can connect to your local WebSocket):
+3. **Create WebSocket tunnel** (so Netlify can connect to your local WebSocket):
    
    **Important:** You must use a tunnel with a specific subdomain so the URL remains consistent. Use **localtunnel** (not ngrok) because:
    - Localtunnel's free tier allows you to specify a custom subdomain
@@ -217,53 +238,24 @@ This is the simplest setup - Claude Desktop will start and manage your server au
    
    **Why not ngrok?** Ngrok's free tier doesn't support custom subdomains, so the URL changes every time you restart it. This would require updating Netlify's `VITE_WS_URL` environment variable each time, making it impractical for this use case.
 
-   **d. Configure Netlify:**
+4. **Configure Netlify:**
    - Go to your Netlify site settings
    - Add environment variable: `VITE_WS_URL=wss://hello3dllm-websocket.loca.lt`
    - **Important:** Use `wss://` (WebSocket Secure) protocol, not `https://`
    - Redeploy your site
 
-7. **Restart Claude Desktop** (to pick up the configuration from `.env` file)
+5. **Restart Claude Desktop** (to pick up the configuration from `.env` file)
 
-8. **Connect to the 3D app:**
-   - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
-   - Claude will provide a Netlify URL with your unique session ID (e.g., `https://your-app.netlify.app?sessionId=<unique-uuid>`)
-   - Copy and paste the URL into your browser
-   - The browser will connect to your Claude Desktop session
+6. **Connect:**
+   - Ask Claude Desktop: "How do I connect to the 3D app?"
+   - It will provide a Netlify URL with your unique session ID (e.g., `https://your-app.netlify.app?sessionId=<unique-uuid>`)
+   - Open that URL in your browser
    - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
 
 **Important Notes:**
 - **Keep the tunnel running:** The `lt --port 3001 --subdomain hello3dllm-websocket` command must stay running while you're using the app
 - **Stable URL:** Using the specific subdomain ensures the URL (`https://hello3dllm-websocket.loca.lt`) remains consistent
 - **If tunnel disconnects:** If the tunnel stops, restart it with the same command and ensure Netlify has the correct `VITE_WS_URL` environment variable set
-
----
-
-### Using Localhost Instead of Netlify (Optional)
-
-If you prefer to use a local development server instead of the Netlify-hosted app:
-
-1. **Create or edit `.env` file** in your project root:
-   ```bash
-   # Set BROWSER_URL to localhost
-   BROWSER_URL=http://localhost:5173
-   ```
-
-2. **Start your local 3D app:**
-   ```bash
-   npm run dev
-   ```
-   This starts the development server on `http://localhost:5173`
-
-3. **Restart Claude Desktop** (to pick up the configuration change)
-
-4. **Connect:**
-   - Ask Claude Desktop: "How do I connect to the 3D app?"
-   - It will provide a localhost URL with your unique session ID (e.g., `http://localhost:5173?sessionId=<unique-uuid>`)
-   - Open that URL in your browser
-   - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
-
-**Note:** When using localhost, you don't need to set up a WebSocket tunnel since the browser connects directly to your local WebSocket server.
 
 ---
 
@@ -286,7 +278,14 @@ If you prefer to use a local development server instead of the Netlify-hosted ap
 - Verify the server started successfully
 - Restart Claude Desktop completely
 
-#### Netlify App Not Connecting (Default Setup)
+#### Local App Not Connecting (Default Setup)
+- Verify your local 3D app is running (`npm run dev`)
+- Check that the app is accessible at `http://localhost:5173`
+- Verify `.env` file has `BROWSER_URL=http://localhost:5173` (this is the default)
+- Check browser console for WebSocket connection errors
+- Ensure WebSocket server is running on port 3001 (Claude Desktop starts it automatically)
+
+#### Netlify App Not Connecting (Optional Setup)
 - Verify WebSocket tunnel is running (`lt --port 3001 --subdomain hello3dllm-websocket`)
 - Check `VITE_WS_URL` is set correctly in Netlify (use `wss://` protocol)
 - Ensure tunnel URL matches what's configured in Netlify
@@ -397,48 +396,27 @@ Use this mode if you want to run the server manually or connect via a tunnel.
      - Configuration file has correct URL with `/mcp` suffix
      - Claude Desktop was fully restarted
 
-8. **Set up Netlify-hosted app (default behavior):**
-   
-   By default, the MCP server connects to the Netlify-hosted version of the 3D app. This requires setting up a WebSocket tunnel using localtunnel.
-   
-   **a. Create a `.env` file** (if not already present):
-   
-   Create a `.env` file in your project root directory:
+8. **Start your local 3D app:**
    ```bash
-   # In your project root (e.g., /Users/turner/MCPDevelopment/Hello3DLLM/.env)
-   BROWSER_URL=https://your-app.netlify.app
+   npm run dev
    ```
-   
-   Replace `https://your-app.netlify.app` with your actual Netlify URL.
-
-   **b. Install localtunnel** (if not already installed):
-   ```bash
-   npm install -g localtunnel
-   ```
-
-   **c. Create WebSocket tunnel:**
-   ```bash
-   lt --port 3001 --subdomain hello3dllm-websocket
-   ```
-   
-   This creates the tunnel URL: `https://hello3dllm-websocket.loca.lt`
-   
-   **Note:** Keep this tunnel running while using the app.
-
-   **d. Configure Netlify:**
-   - Go to your Netlify site settings
-   - Add environment variable: `VITE_WS_URL=wss://hello3dllm-websocket.loca.lt`
-   - **Important:** Use `wss://` (WebSocket Secure) protocol, not `https://`
-   - Redeploy your site
+   This starts the development server on `http://localhost:5173`
+   - The `.env` file (created automatically) defaults to `BROWSER_URL=http://localhost:5173`
+   - No additional configuration needed for localhost setup
 
 9. **Connect to the 3D app:**
    - Ask Claude Desktop: "How do I connect to the 3D app?" or "Get browser URL"
-   - Claude will provide a Netlify URL with your unique session ID (e.g., `https://your-app.netlify.app?sessionId=<unique-uuid>`)
+   - Claude will provide a localhost URL with your unique session ID (e.g., `http://localhost:5173?sessionId=<unique-uuid>`)
    - Copy and paste the URL into your browser
    - The browser will connect to your Claude Desktop session
    - **Note:** Each Claude Desktop process gets its own unique UUID session ID, ensuring proper session isolation
 
-**Note:** If you prefer to use localhost instead, see the [Using Localhost Instead of Netlify](#using-localhost-instead-of-netlify-optional) section below.
+**Default Configuration:**
+- The `.env` file defaults to `BROWSER_URL=http://localhost:5173`
+- No WebSocket tunnel needed for localhost (browser connects directly to `ws://localhost:3001`)
+- Simple setup - just run `npm run dev` and connect!
+
+**Note:** If you prefer to use Netlify instead, see the [Using Netlify Instead of Localhost](#using-netlify-instead-of-localhost-optionaladvanced) section below.
 
 ---
 
@@ -456,8 +434,8 @@ Use this mode if you want to run the server manually or connect via a tunnel.
 - Ensure tunnel hasn't expired (ngrok free tier URLs change on restart)
 
 #### Changes Not Visible
-- If using Netlify (default): Verify WebSocket tunnel is running and Netlify has correct `VITE_WS_URL` configured
-- If using localhost: Make sure your 3D app is running (`npm run dev`)
+- If using localhost (default): Make sure your 3D app is running (`npm run dev`)
+- If using Netlify (optional): Verify WebSocket tunnel is running and Netlify has correct `VITE_WS_URL` configured
 - Verify browser is connected to the correct session
 - Check browser console for WebSocket connection errors
 
@@ -481,9 +459,9 @@ Claude will automatically call the appropriate MCP tools, and changes appear in 
 
 For Claude Desktop, use **Subprocess Mode** (Option 1) - it's the simplest setup as Claude Desktop manages the server automatically.
 
-**Default Behavior:** The setup defaults to using the Netlify-hosted 3D app, which requires a localtunnel WebSocket tunnel. This provides a stable, production-like environment without needing to run a local development server.
+**Default Behavior:** The setup defaults to using localhost (`http://localhost:5173`), which is the simplest configuration. Just run `npm run dev` and connect - no tunneling required!
 
-**Using Localhost:** If you prefer local development, you can override the default by setting `BROWSER_URL=http://localhost:5173` in your `.env` file and running `npm run dev` locally.
+**Using Netlify:** If you prefer to use a Netlify-hosted app, you can override the default by setting `BROWSER_URL=https://your-app.netlify.app` in your `.env` file and setting up a WebSocket tunnel. See [Using Netlify Instead of Localhost](#using-netlify-instead-of-localhost-optionaladvanced) for details.
 
 ---
 
