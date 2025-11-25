@@ -12,92 +12,6 @@ Claude Desktop is Anthropic's free desktop application that supports MCP servers
 
 ---
 
-## Clean Up Existing Processes (Start with a Clean Slate)
-
-Before setting up Claude Desktop, it's important to ensure ports 3000 and 3001 are free. These ports are commonly used and may already be occupied by previous server instances or other applications.
-
-### Check for Processes on Ports 3000 and 3001
-
-**macOS/Linux:**
-```bash
-# Check what's using port 3000
-lsof -i :3000
-
-# Check what's using port 3001
-lsof -i :3001
-
-# Check both ports at once
-lsof -i :3000 -i :3001
-```
-
-**Windows (PowerShell):**
-```powershell
-# Check what's using port 3000
-netstat -ano | findstr :3000
-
-# Check what's using port 3001
-netstat -ano | findstr :3001
-```
-
-**Windows (Command Prompt):**
-```cmd
-netstat -ano | findstr :3000
-netstat -ano | findstr :3001
-```
-
-### Kill Processes on Ports 3000 and 3001
-
-**macOS/Linux:**
-```bash
-# Kill processes on both ports (recommended)
-lsof -ti :3000 :3001 | xargs kill -9
-
-# Or kill them individually
-# First, find the PID (Process ID) from lsof output, then:
-kill -9 <PID>
-
-# Alternative: Kill all node processes (use with caution)
-pkill -f "node.*server.js"
-```
-
-**Windows (PowerShell):**
-```powershell
-# Find and kill process on port 3000
-$port3000 = netstat -ano | findstr :3000 | Select-String "\s+(\d+)$" | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1
-if ($port3000) { taskkill /PID $port3000 /F }
-
-# Find and kill process on port 3001
-$port3001 = netstat -ano | findstr :3001 | Select-String "\s+(\d+)$" | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1
-if ($port3001) { taskkill /PID $port3001 /F }
-```
-
-**Windows (Command Prompt):**
-```cmd
-# Find the PID from netstat output, then:
-taskkill /PID <PID> /F
-
-# Or kill all node processes (use with caution)
-taskkill /IM node.exe /F
-```
-
-### Verify Ports are Free
-
-After killing processes, verify the ports are free:
-
-**macOS/Linux:**
-```bash
-# Should return nothing if ports are free
-lsof -i :3000 -i :3001
-```
-
-**Windows:**
-```cmd
-# Should return nothing if ports are free
-netstat -ano | findstr ":3000 :3001"
-```
-
----
-
 ## Connection Modes
 
 Claude Desktop supports **two connection modes**:
@@ -114,7 +28,7 @@ This is the simplest setup - Claude Desktop will start and manage your server au
 ### Step-by-Step Setup
 
 1. **Clean up any existing processes:**
-   - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section above
+   - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section below
    - Make sure ports 3000 and 3001 are free
    - If you have `node server.js` running in a terminal, stop it (Ctrl+C)
    - Claude Desktop will start the server automatically
@@ -262,7 +176,7 @@ If you want to use your Netlify-hosted app instead of running locally:
 ### Troubleshooting Subprocess Mode
 
 #### Port Already in Use Error
-- See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section above for detailed commands
+- See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section below for detailed commands
 - Make sure you've stopped any manually running server instances
 - Check if port 3000 or 3001 is in use and kill any processes using those ports
 - **macOS/Linux:** `lsof -ti :3000 :3001 | xargs kill -9`
@@ -302,7 +216,7 @@ Use this mode if you want to run the server manually or connect via a tunnel.
 ### Step-by-Step Setup
 
 1. **Clean up any existing processes:**
-   - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section above
+   - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section below
    - Make sure ports 3000 and 3001 are free before starting
 
 2. **Start your MCP server manually:**
@@ -438,6 +352,92 @@ Use this mode if you want to run the server manually or connect via a tunnel.
 - If using Netlify (optional): Verify WebSocket tunnel is running and Netlify has correct `VITE_WS_URL` configured
 - Verify browser is connected to the correct session
 - Check browser console for WebSocket connection errors
+
+---
+
+## Clean Up Existing Processes (Start with a Clean Slate)
+
+Before setting up Claude Desktop, it's important to ensure ports 3000 and 3001 are free. These ports are commonly used and may already be occupied by previous server instances or other applications.
+
+### Check for Processes on Ports 3000 and 3001
+
+**macOS/Linux:**
+```bash
+# Check what's using port 3000
+lsof -i :3000
+
+# Check what's using port 3001
+lsof -i :3001
+
+# Check both ports at once
+lsof -i :3000 -i :3001
+```
+
+**Windows (PowerShell):**
+```powershell
+# Check what's using port 3000
+netstat -ano | findstr :3000
+
+# Check what's using port 3001
+netstat -ano | findstr :3001
+```
+
+**Windows (Command Prompt):**
+```cmd
+netstat -ano | findstr :3000
+netstat -ano | findstr :3001
+```
+
+### Kill Processes on Ports 3000 and 3001
+
+**macOS/Linux:**
+```bash
+# Kill processes on both ports (recommended)
+lsof -ti :3000 :3001 | xargs kill -9
+
+# Or kill them individually
+# First, find the PID (Process ID) from lsof output, then:
+kill -9 <PID>
+
+# Alternative: Kill all node processes (use with caution)
+pkill -f "node.*server.js"
+```
+
+**Windows (PowerShell):**
+```powershell
+# Find and kill process on port 3000
+$port3000 = netstat -ano | findstr :3000 | Select-String "\s+(\d+)$" | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1
+if ($port3000) { taskkill /PID $port3000 /F }
+
+# Find and kill process on port 3001
+$port3001 = netstat -ano | findstr :3001 | Select-String "\s+(\d+)$" | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1
+if ($port3001) { taskkill /PID $port3001 /F }
+```
+
+**Windows (Command Prompt):**
+```cmd
+# Find the PID from netstat output, then:
+taskkill /PID <PID> /F
+
+# Or kill all node processes (use with caution)
+taskkill /IM node.exe /F
+```
+
+### Verify Ports are Free
+
+After killing processes, verify the ports are free:
+
+**macOS/Linux:**
+```bash
+# Should return nothing if ports are free
+lsof -i :3000 -i :3001
+```
+
+**Windows:**
+```cmd
+# Should return nothing if ports are free
+netstat -ano | findstr ":3000 :3001"
+```
 
 ---
 
