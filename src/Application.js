@@ -97,6 +97,18 @@ export class Application {
       ['walkKeyLightOut', () => {
         this.sceneManager.walkKeyLightOut();
       }],
+      ['setKeyLightPositionSpherical', (command) => {
+        this.sceneManager.setKeyLightPositionSpherical(
+          command.azimuth,
+          command.elevation
+        );
+      }],
+      ['getKeyLightPositionSpherical', (command) => {
+        const position = this.sceneManager.getKeyLightPositionSpherical();
+        // Note: Response would need to be sent back via WebSocket for full implementation
+        // For now, just log it (MCP server will handle response)
+        console.log('Key light position (spherical):', position);
+      }],
       // Fill light controls
       ['setFillLightIntensity', (command) => {
         this.sceneManager.setFillLightIntensity(command.intensity);
@@ -121,6 +133,18 @@ export class Application {
       }],
       ['walkFillLightOut', () => {
         this.sceneManager.walkFillLightOut();
+      }],
+      ['setFillLightPositionSpherical', (command) => {
+        this.sceneManager.setFillLightPositionSpherical(
+          command.azimuth,
+          command.elevation
+        );
+      }],
+      ['getFillLightPositionSpherical', (command) => {
+        const position = this.sceneManager.getFillLightPositionSpherical();
+        // Note: Response would need to be sent back via WebSocket for full implementation
+        // For now, just log it (MCP server will handle response)
+        console.log('Fill light position (spherical):', position);
       }]
     ]);
   }

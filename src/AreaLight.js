@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from './constants.js';
+import { sphericalToCartesian, cartesianToSpherical } from './utils/coordinates/CoordinateSystem.js';
 
 /**
  * Represents an area light (RectAreaLight) for key or fill lighting
@@ -207,8 +208,14 @@ export class AreaLight {
   }
 
   /**
-   * Moves the light along the axis from the model origin to the light's current position
+   * Moves the light along the radial vector from the model origin to the light's current position
    * (dollying in/out from the origin)
+   * 
+   * This composes nicely with setPositionSpherical():
+   * - setPositionSpherical() changes azimuth/elevation while preserving distance
+   * - dolly() then moves along the radial line from origin to the light's current position
+   * This allows natural workflow: rotate to desired position, then adjust distance along the normal
+   * 
    * @param {number} delta - Movement delta (positive moves away from origin, negative moves toward)
    */
   dolly(delta) {
@@ -220,26 +227,100 @@ export class AreaLight {
     const currentPosition = this.areaLight.position.clone();
     const currentDistance = currentPosition.length();
     
-    // Calculate direction vector from origin to light position
+    // Calculate direction vector from origin to light position (radial direction)
     let direction;
     if (currentDistance > 0.0001) {
-      // Normalize to get direction
+      // Normalize to get radial direction vector
       direction = currentPosition.clone().normalize();
     } else {
       // If light is at origin, use a default direction (forward along Z)
       direction = new THREE.Vector3(0, 0, 1);
     }
     
-    // Calculate movement vector along the direction
+    // Calculate movement vector along the radial direction
     const movement = direction.multiplyScalar(delta);
     
-    // Calculate new position
+    // Calculate new position by moving along the radial line
     const newPosition = currentPosition.add(movement);
     
     // Update light position
     this.areaLight.position.copy(newPosition);
     
     // After moving, update the light's lookAt to maintain target orientation
+    const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
+    const targetPosition = config.TARGET || { x: 0, y: 0, z: 0 };
+    this.areaLight.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);
+  }
+
+  /**
+   * Sets the light position using camera-centric spherical coordinates
+   * Preserves the current distance - only changes azimuth and elevation
+   * @param {number|string} azimuth - Horizontal angle in degrees (0-360) or direction name (e.g., "north", "northwest", "NW")
+   *   0° = camera forward (North), 90° = camera right (East), 180° = behind camera (South), 270° = camera left (West)
+   * @param {number} elevation - Vertical angle in degrees (0-90), 0° = horizon, 90° = overhead
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  setPositionSpherical(azimuth, elevation, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    // Get current distance from existing position
+    const currentPosition = this.areaLight.position.clone();
+    const currentDistance = currentPosition.length();
+    
+    // Use current distance (or default to 1 if at origin)
+    const distance = currentDistance > 0.0001 ? currentDistance : 1.0;
+
+    // Convert spherical coordinates to Cartesian (relative to model origin)
+    const cartesian = sphericalToCartesian(azimuth, elevation, distance, camera);
+    
+    // Set position relative to parent group (which is at model origin)
+    this.areaLight.position.set(cartesian.x, cartesian.y, cartesian.z);
+    
+    // Update the light's lookAt to maintain target orientation
+    const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
+    const targetPosition = config.TARGET || { x: 0, y: 0, z: 0 };
+    this.areaLight.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);
+  }
+
+  /**
+   * Gets the current light position as camera-centric spherical coordinates
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates
+   */
+  getPositionSpherical(camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return { azimuth: 0, elevation: 0, distance: 0 };
+    }
+
+    // Get position relative to parent (which is at model origin)
+    const relativePosition = this.areaLight.position.clone();
+    
+    // Convert to spherical coordinates
+    return cartesianToSpherical(
+      relativePosition.x,
+      relativePosition.y,
+      relativePosition.z,
+      camera
+    );
+  }
+
+  /**
+   * Sets the light position using Cartesian coordinates (relative to model origin)
+   * @param {number} x - X coordinate relative to model origin
+   * @param {number} y - Y coordinate relative to model origin
+   * @param {number} z - Z coordinate relative to model origin
+   */
+  setPositionCartesian(x, y, z) {
+    if (!this.areaLight) {
+      return;
+    }
+
+    // Set position relative to parent group (which is at model origin)
+    this.areaLight.position.set(x, y, z);
+    
+    // Update the light's lookAt to maintain target orientation
     const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
     const targetPosition = config.TARGET || { x: 0, y: 0, z: 0 };
     this.areaLight.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);

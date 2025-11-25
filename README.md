@@ -345,7 +345,7 @@ If you want to use your Netlify-hosted app instead of running locally:
   - Make sure you've stopped any manually running server instances
   - Check if port 3000 or 3001 is in use: `lsof -i :3000` or `lsof -i :3001` (macOS/Linux)
   - Kill the process if needed: `kill -9 <PID>`
-  - Or use: `lsof -ti :3000 :3001 | xargs kill -9`
+  - Or use: `lsof -ti :3000 -ti :3001 | xargs kill -9`
 
 - **Server not starting:**
   - Verify the path to `server.js` is correct and absolute
@@ -1302,7 +1302,7 @@ If you see "port already in use" errors:
 lsof -i :3000 -i :3001
 
 # Kill processes on those ports
-lsof -ti :3000 :3001 | xargs kill -9
+lsof -ti :3000 -ti :3001 | xargs kill -9
 
 # Or kill any running server.js processes
 pkill -f "node.*server.js"

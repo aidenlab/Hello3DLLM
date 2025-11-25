@@ -827,6 +827,194 @@ mcpServer.registerTool(
   }
 );
 
+// Direction name to azimuth mapping (matches CoordinateSystem.js)
+const directionToAzimuthMap = new Map([
+  ['north', 0], ['east', 90], ['south', 180], ['west', 270],
+  ['northeast', 45], ['northwest', 315], ['southeast', 135], ['southwest', 225],
+  ['n', 0], ['e', 90], ['s', 180], ['w', 270],
+  ['ne', 45], ['nw', 315], ['se', 135], ['sw', 225],
+  ['nne', 22.5], ['ene', 67.5], ['ese', 112.5], ['sse', 157.5],
+  ['ssw', 202.5], ['wsw', 247.5], ['wnw', 292.5], ['nnw', 337.5],
+]);
+
+// Helper function to normalize direction names
+function normalizeDirectionName(direction) {
+  if (!direction || typeof direction !== 'string') {
+    return null;
+  }
+  let normalized = direction.toLowerCase().trim();
+  normalized = normalized.replace(/[\s\-\.]/g, '');
+  return normalized;
+}
+
+// Helper function to convert direction name or number to azimuth
+function parseAzimuth(input) {
+  if (typeof input === 'number') {
+    return input;
+  }
+  if (typeof input === 'string') {
+    const normalized = normalizeDirectionName(input);
+    if (normalized && directionToAzimuthMap.has(normalized)) {
+      return directionToAzimuthMap.get(normalized);
+    }
+  }
+  return null;
+}
+
+// Zod schema for azimuth - accepts numbers (0-360) or direction names
+const availableDirectionNames = Array.from(directionToAzimuthMap.keys()).filter(name => name.length > 1).join(', ');
+const azimuthSchema = z.union([
+  z.number().min(0).max(360),
+  z.string().refine(
+    (val) => {
+      const normalized = normalizeDirectionName(val);
+      return normalized && directionToAzimuthMap.has(normalized);
+    },
+    {
+      message: `Must be a number (0-360) or a direction name. Available directions: ${availableDirectionNames}`
+    }
+  )
+]).describe(`Horizontal angle in degrees (0-360) or direction name (e.g., "north", "northwest", "NW"). 0° = camera forward (North), 90° = camera right (East), 180° = behind camera (South), 270° = camera left (West). Available directions: ${availableDirectionNames}`);
+
+// Spherical coordinate tools for camera-centric positioning
+mcpServer.registerTool(
+  'set_key_light_position_spherical',
+  {
+    title: 'Set Key Light Position (Spherical Coordinates)',
+    description: `Set the key light position using camera-centric spherical coordinates. Preserves current distance - only changes azimuth and elevation. Azimuth: 0° = camera forward (North), 90° = camera right (East), 180° = behind camera (South), 270° = camera left (West). Elevation: 0° = horizon, 90° = overhead. Azimuth can be a number (0-360) or a direction name. Available direction names: ${availableDirectionNames}. Examples: "north" (0°), "east" (90°), "northwest" (315°), "southeast" (135°).`,
+    inputSchema: {
+      azimuth: azimuthSchema,
+      elevation: z.number().min(0).max(90).describe('Vertical angle in degrees (0-90), 0° = horizon, 90° = overhead')
+    }
+  },
+  async ({ azimuth, elevation }) => {
+    // Convert direction name to numeric azimuth if needed
+    const azimuthValue = parseAzimuth(azimuth);
+    if (azimuthValue === null) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid azimuth: ${azimuth}. Must be a number (0-360) or a direction name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    routeToCurrentSession({
+      type: 'setKeyLightPositionSpherical',
+      azimuth: azimuthValue,
+      elevation: elevation
+    });
+
+    const azimuthDisplay = typeof azimuth === 'string' ? `${azimuth} (${azimuthValue}°)` : `${azimuthValue}°`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Key light positioned at azimuth ${azimuthDisplay}, elevation ${elevation}° (distance preserved)`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'get_key_light_position_spherical',
+  {
+    title: 'Get Key Light Position (Spherical Coordinates)',
+    description: 'Get the current key light position in camera-centric spherical coordinates',
+    inputSchema: {}
+  },
+  async () => {
+    // Note: This requires bidirectional WebSocket communication to query browser state
+    // For now, return a message indicating the feature needs browser response capability
+    // In a full implementation, this would send a query command and wait for response
+    routeToCurrentSession({
+      type: 'getKeyLightPositionSpherical'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Query sent to browser. Current position logged in browser console. Full bidirectional query support coming soon.'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_fill_light_position_spherical',
+  {
+    title: 'Set Fill Light Position (Spherical Coordinates)',
+    description: `Set the fill light position using camera-centric spherical coordinates. Preserves current distance - only changes azimuth and elevation. Azimuth: 0° = camera forward (North), 90° = camera right (East), 180° = behind camera (South), 270° = camera left (West). Elevation: 0° = horizon, 90° = overhead. Azimuth can be a number (0-360) or a direction name. Available direction names: ${availableDirectionNames}. Examples: "north" (0°), "east" (90°), "northwest" (315°), "southeast" (135°).`,
+    inputSchema: {
+      azimuth: azimuthSchema,
+      elevation: z.number().min(0).max(90).describe('Vertical angle in degrees (0-90), 0° = horizon, 90° = overhead')
+    }
+  },
+  async ({ azimuth, elevation }) => {
+    // Convert direction name to numeric azimuth if needed
+    const azimuthValue = parseAzimuth(azimuth);
+    if (azimuthValue === null) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid azimuth: ${azimuth}. Must be a number (0-360) or a direction name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    routeToCurrentSession({
+      type: 'setFillLightPositionSpherical',
+      azimuth: azimuthValue,
+      elevation: elevation
+    });
+
+    const azimuthDisplay = typeof azimuth === 'string' ? `${azimuth} (${azimuthValue}°)` : `${azimuthValue}°`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Fill light positioned at azimuth ${azimuthDisplay}, elevation ${elevation}° (distance preserved)`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'get_fill_light_position_spherical',
+  {
+    title: 'Get Fill Light Position (Spherical Coordinates)',
+    description: 'Get the current fill light position in camera-centric spherical coordinates',
+    inputSchema: {}
+  },
+  async () => {
+    // Note: This requires bidirectional WebSocket communication to query browser state
+    // For now, return a message indicating the feature needs browser response capability
+    // In a full implementation, this would send a query command and wait for response
+    routeToCurrentSession({
+      type: 'getFillLightPositionSpherical'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Query sent to browser. Current position logged in browser console. Full bidirectional query support coming soon.'
+        }
+      ]
+    };
+  }
+);
+
 // Register tool: get_browser_connection_url
 mcpServer.registerTool(
   'get_browser_connection_url',
@@ -1137,12 +1325,19 @@ if (!isStdioMode) {
   if (existsSync(distPath)) {
     app.use(express.static(distPath));
     // Serve index.html for all non-API routes (SPA routing)
-    app.get('*', (req, res) => {
-      // Don't serve index.html for MCP routes (shouldn't reach here, but safety check)
+    // Use middleware function instead of route pattern to avoid path-to-regexp issues
+    // This will only be called for routes that don't match static files
+    app.use((req, res, next) => {
+      // Skip if this is an MCP route
       if (req.path.startsWith('/mcp')) {
-        return res.status(404).send('Not found');
+        return next();
       }
-      res.sendFile(join(distPath, 'index.html'));
+      // Only handle GET requests for SPA routing
+      if (req.method === 'GET') {
+        res.sendFile(join(distPath, 'index.html'));
+      } else {
+        next();
+      }
     });
   }
 

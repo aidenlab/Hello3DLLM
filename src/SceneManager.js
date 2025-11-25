@@ -173,6 +173,30 @@ export class SceneManager {
     }
   }
 
+  /**
+   * Sets the key light position using camera-centric spherical coordinates
+   * Preserves the current distance - only changes azimuth and elevation
+   * @param {number|string} azimuth - Horizontal angle in degrees (0-360) or direction name (e.g., "north", "northwest", "NW")
+   *   0° = camera forward (North), 90° = camera right (East), 180° = behind camera (South), 270° = camera left (West)
+   * @param {number} elevation - Vertical angle in degrees (0-90), 0° = horizon, 90° = overhead
+   */
+  setKeyLightPositionSpherical(azimuth, elevation) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.setPositionSpherical(azimuth, elevation, this.camera);
+    }
+  }
+
+  /**
+   * Gets the current key light position as camera-centric spherical coordinates
+   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates
+   */
+  getKeyLightPositionSpherical() {
+    if (this.keyLight && this.camera) {
+      return this.keyLight.getPositionSpherical(this.camera);
+    }
+    return { azimuth: 0, elevation: 0, distance: 0 };
+  }
+
   // Fill light control methods
   setFillLightIntensity(intensity) {
     if (this.fillLight) {
@@ -210,6 +234,30 @@ export class SceneManager {
       this.fillLight.getLightObject().width = width;
       this.fillLight.getLightObject().height = height;
     }
+  }
+
+  /**
+   * Sets the fill light position using camera-centric spherical coordinates
+   * Preserves the current distance - only changes azimuth and elevation
+   * @param {number|string} azimuth - Horizontal angle in degrees (0-360) or direction name (e.g., "north", "northwest", "NW")
+   *   0° = camera forward (North), 90° = camera right (East), 180° = behind camera (South), 270° = camera left (West)
+   * @param {number} elevation - Vertical angle in degrees (0-90), 0° = horizon, 90° = overhead
+   */
+  setFillLightPositionSpherical(azimuth, elevation) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.setPositionSpherical(azimuth, elevation, this.camera);
+    }
+  }
+
+  /**
+   * Gets the current fill light position as camera-centric spherical coordinates
+   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates
+   */
+  getFillLightPositionSpherical() {
+    if (this.fillLight && this.camera) {
+      return this.fillLight.getPositionSpherical(this.camera);
+    }
+    return { azimuth: 0, elevation: 0, distance: 0 };
   }
 
   // Key light swing methods
