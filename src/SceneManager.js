@@ -19,6 +19,7 @@ export class SceneManager {
     this.fillLight = null;
     this.keyLightHelper = null;
     this.fillLightHelper = null;
+    this.rotationController = null; // Set by Application after initialization
   }
 
   async initialize() {
@@ -87,6 +88,180 @@ export class SceneManager {
 
   getModel() {
     return this.model.getMesh();
+  }
+
+  // Camera control methods
+
+  /**
+   * Sets the camera distance from the origin (dollying)
+   * @param {number} distance - Distance from origin
+   */
+  dollyCamera(distance) {
+    if (this.camera) {
+      this.cameraController.dollyCamera(distance);
+    }
+  }
+
+  /**
+   * Moves the camera closer to the origin (dolly in)
+   * @param {number} amount - Optional amount to move
+   */
+  dollyCameraIn(amount = null) {
+    if (this.camera) {
+      this.cameraController.dollyCameraIn(amount);
+    }
+  }
+
+  /**
+   * Moves the camera farther from the origin (dolly out)
+   * @param {number} amount - Optional amount to move
+   */
+  dollyCameraOut(amount = null) {
+    if (this.camera) {
+      this.cameraController.dollyCameraOut(amount);
+    }
+  }
+
+  /**
+   * Sets the camera field of view (FOV)
+   * @param {number} fov - Field of view value
+   */
+  setCameraFOV(fov) {
+    if (this.camera) {
+      this.cameraController.setCameraFOV(fov);
+    }
+  }
+
+  /**
+   * Increases the camera field of view (wider angle)
+   * @param {number} amount - Optional amount to increase
+   */
+  increaseCameraFOV(amount = null) {
+    if (this.camera) {
+      this.cameraController.increaseCameraFOV(amount);
+    }
+  }
+
+  /**
+   * Decreases the camera field of view (narrower angle, more zoomed in)
+   * @param {number} amount - Optional amount to decrease
+   */
+  decreaseCameraFOV(amount = null) {
+    if (this.camera) {
+      this.cameraController.decreaseCameraFOV(amount);
+    }
+  }
+
+  /**
+   * Gets the current camera distance from origin
+   * @returns {number} Current camera distance
+   */
+  getCameraDistance() {
+    if (this.camera) {
+      return this.cameraController.getCameraDistance();
+    }
+    return 0;
+  }
+
+  /**
+   * Gets the current camera field of view
+   * @returns {number} Current FOV value
+   */
+  getCameraFOV() {
+    if (this.camera) {
+      return this.cameraController.getCameraFOV();
+    }
+    return 0;
+  }
+
+  /**
+   * Sets the rotation controller reference (called by Application after initialization)
+   * @param {RotationController} rotationController - The rotation controller instance
+   */
+  setRotationController(rotationController) {
+    this.rotationController = rotationController;
+  }
+
+  // Model rotation control methods
+
+  /**
+   * Gets the model rotation as Euler angles in degrees
+   * @returns {{x: number, y: number, z: number}} Euler angles in degrees (XYZ order)
+   */
+  getModelRotation() {
+    if (this.rotationController) {
+      return this.rotationController.getRotationEuler();
+    }
+    return { x: 0, y: 0, z: 0 };
+  }
+
+  /**
+   * Sets the model rotation from Euler angles in degrees
+   * @param {number} x - Rotation around X axis in degrees (pitch)
+   * @param {number} y - Rotation around Y axis in degrees (yaw)
+   * @param {number} z - Rotation around Z axis in degrees (roll)
+   */
+  setModelRotation(x, y, z) {
+    if (this.rotationController) {
+      this.rotationController.setRotationEuler(x, y, z);
+      // Trigger render after rotation change
+      this.render(this.camera);
+    }
+  }
+
+  /**
+   * Rotates the model clockwise around Y axis (yaw) relative to current rotation
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateModelClockwise(degrees = 10) {
+    if (this.rotationController) {
+      this.rotationController.rotateClockwise(degrees);
+      this.render(this.camera);
+    }
+  }
+
+  /**
+   * Rotates the model counterclockwise around Y axis (yaw) relative to current rotation
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateModelCounterclockwise(degrees = 10) {
+    if (this.rotationController) {
+      this.rotationController.rotateCounterclockwise(degrees);
+      this.render(this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the model pitch (X axis rotation) upward relative to current rotation
+   * @param {number} degrees - Amount to increase pitch in degrees (defaults to 5°)
+   */
+  nudgeModelPitchUp(degrees = 5) {
+    if (this.rotationController) {
+      this.rotationController.nudgePitchUp(degrees);
+      this.render(this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the model pitch (X axis rotation) downward relative to current rotation
+   * @param {number} degrees - Amount to decrease pitch in degrees (defaults to 5°)
+   */
+  nudgeModelPitchDown(degrees = 5) {
+    if (this.rotationController) {
+      this.rotationController.nudgePitchDown(degrees);
+      this.render(this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the model roll (Z axis rotation) relative to current rotation
+   * @param {number} degrees - Amount to adjust roll in degrees (positive = clockwise, defaults to 5°)
+   */
+  nudgeModelRoll(degrees = 5) {
+    if (this.rotationController) {
+      this.rotationController.nudgeRoll(degrees);
+      this.render(this.camera);
+    }
   }
 
   /**
@@ -251,13 +426,119 @@ export class SceneManager {
 
   /**
    * Gets the current fill light position as camera-centric spherical coordinates
-   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates
+   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates (numeric values only)
    */
   getFillLightPositionSpherical() {
     if (this.fillLight && this.camera) {
       return this.fillLight.getPositionSpherical(this.camera);
     }
     return { azimuth: 0, elevation: 0, distance: 0 };
+  }
+
+  // Key light relative adjustment methods
+
+  /**
+   * Rotates the key light clockwise (decreases azimuth) relative to current position
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateKeyLightClockwise(degrees = 10) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.rotateClockwise(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Rotates the key light counterclockwise (increases azimuth) relative to current position
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateKeyLightCounterclockwise(degrees = 10) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.rotateCounterclockwise(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the key light elevation upward relative to current position
+   * @param {number} degrees - Amount to increase elevation in degrees (defaults to 5°)
+   */
+  nudgeKeyLightElevationUp(degrees = 5) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.nudgeElevationUp(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the key light elevation downward relative to current position
+   * @param {number} degrees - Amount to decrease elevation in degrees (defaults to 5°)
+   */
+  nudgeKeyLightElevationDown(degrees = 5) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.nudgeElevationDown(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Moves the key light toward a specific direction relative to current position
+   * @param {number|string} targetDirection - Target direction (numeric azimuth or direction name)
+   * @param {number} degrees - Amount to move toward target in degrees (defaults to 10°)
+   */
+  moveKeyLightTowardDirection(targetDirection, degrees = 10) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.moveTowardDirection(targetDirection, degrees, this.camera);
+    }
+  }
+
+  // Fill light relative adjustment methods
+
+  /**
+   * Rotates the fill light clockwise (decreases azimuth) relative to current position
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateFillLightClockwise(degrees = 10) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.rotateClockwise(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Rotates the fill light counterclockwise (increases azimuth) relative to current position
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateFillLightCounterclockwise(degrees = 10) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.rotateCounterclockwise(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the fill light elevation upward relative to current position
+   * @param {number} degrees - Amount to increase elevation in degrees (defaults to 5°)
+   */
+  nudgeFillLightElevationUp(degrees = 5) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.nudgeElevationUp(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Adjusts the fill light elevation downward relative to current position
+   * @param {number} degrees - Amount to decrease elevation in degrees (defaults to 5°)
+   */
+  nudgeFillLightElevationDown(degrees = 5) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.nudgeElevationDown(degrees, this.camera);
+    }
+  }
+
+  /**
+   * Moves the fill light toward a specific direction relative to current position
+   * @param {number|string} targetDirection - Target direction (numeric azimuth or direction name)
+   * @param {number} degrees - Amount to move toward target in degrees (defaults to 10°)
+   */
+  moveFillLightTowardDirection(targetDirection, degrees = 10) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.moveTowardDirection(targetDirection, degrees, this.camera);
+    }
   }
 
   // Key light swing methods

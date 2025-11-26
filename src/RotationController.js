@@ -242,4 +242,92 @@ export class RotationController {
     }
     this.startVector.set(0, 0, 0);
   }
+
+  /**
+   * Gets the model rotation as Euler angles in degrees
+   * @returns {{x: number, y: number, z: number}} Euler angles in degrees (XYZ order)
+   */
+  getRotationEuler() {
+    const euler = new THREE.Euler();
+    euler.setFromQuaternion(this.model.quaternion, 'XYZ');
+    return {
+      x: THREE.MathUtils.radToDeg(euler.x),
+      y: THREE.MathUtils.radToDeg(euler.y),
+      z: THREE.MathUtils.radToDeg(euler.z)
+    };
+  }
+
+  /**
+   * Sets the model rotation from Euler angles in degrees
+   * @param {number} x - Rotation around X axis in degrees (pitch)
+   * @param {number} y - Rotation around Y axis in degrees (yaw)
+   * @param {number} z - Rotation around Z axis in degrees (roll)
+   */
+  setRotationEuler(x, y, z) {
+    const euler = new THREE.Euler(
+      THREE.MathUtils.degToRad(x),
+      THREE.MathUtils.degToRad(y),
+      THREE.MathUtils.degToRad(z),
+      'XYZ'
+    );
+    this.model.quaternion.setFromEuler(euler);
+    // Update internal quaternion state to match
+    this.quaternion.copy(this.model.quaternion);
+    this.quaternionTouchDown.copy(this.model.quaternion);
+    
+    // Trigger render if callback is set
+    if (this.onRender) {
+      this.onRender();
+    }
+  }
+
+  /**
+   * Rotates the model clockwise around Y axis (yaw) relative to current rotation
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateClockwise(degrees = 10) {
+    const current = this.getRotationEuler();
+    const newY = (current.y - degrees + 360) % 360;
+    this.setRotationEuler(current.x, newY, current.z);
+  }
+
+  /**
+   * Rotates the model counterclockwise around Y axis (yaw) relative to current rotation
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   */
+  rotateCounterclockwise(degrees = 10) {
+    const current = this.getRotationEuler();
+    const newY = (current.y + degrees) % 360;
+    this.setRotationEuler(current.x, newY, current.z);
+  }
+
+  /**
+   * Adjusts the model pitch (X axis rotation) upward relative to current rotation
+   * @param {number} degrees - Amount to increase pitch in degrees (defaults to 5°)
+   */
+  nudgePitchUp(degrees = 5) {
+    const current = this.getRotationEuler();
+    const newX = current.x + degrees;
+    this.setRotationEuler(newX, current.y, current.z);
+  }
+
+  /**
+   * Adjusts the model pitch (X axis rotation) downward relative to current rotation
+   * @param {number} degrees - Amount to decrease pitch in degrees (defaults to 5°)
+   */
+  nudgePitchDown(degrees = 5) {
+    const current = this.getRotationEuler();
+    const newX = current.x - degrees;
+    this.setRotationEuler(newX, current.y, current.z);
+  }
+
+  /**
+   * Adjusts the model roll (Z axis rotation) relative to current rotation
+   * @param {number} degrees - Amount to adjust roll in degrees (positive = clockwise, defaults to 5°)
+   */
+  nudgeRoll(degrees = 5) {
+    const current = this.getRotationEuler();
+    const newZ = (current.z + degrees + 360) % 360;
+    this.setRotationEuler(current.x, current.y, newZ);
+  }
 }

@@ -32,6 +32,9 @@ export class Application {
       height: rect.height
     });
     
+    // Expose rotation controller to scene manager for state access
+    this.sceneManager.setRotationController(this.rotationController);
+    
     // Track mouse velocity for momentum
     this.lastMousePosition = { x: 0, y: 0 };
     this.lastMouseTime = 0;
@@ -145,6 +148,92 @@ export class Application {
         // Note: Response would need to be sent back via WebSocket for full implementation
         // For now, just log it (MCP server will handle response)
         console.log('Fill light position (spherical):', position);
+      }],
+      // Camera control commands
+      ['dollyCamera', (command) => {
+        this.sceneManager.dollyCamera(command.distance);
+      }],
+      ['dollyCameraIn', (command) => {
+        this.sceneManager.dollyCameraIn(command.amount);
+      }],
+      ['dollyCameraOut', (command) => {
+        this.sceneManager.dollyCameraOut(command.amount);
+      }],
+      ['setCameraFOV', (command) => {
+        this.sceneManager.setCameraFOV(command.fov);
+      }],
+      ['increaseCameraFOV', (command) => {
+        this.sceneManager.increaseCameraFOV(command.amount);
+      }],
+      ['decreaseCameraFOV', (command) => {
+        this.sceneManager.decreaseCameraFOV(command.amount);
+      }],
+      // Model rotation commands
+      ['getModelRotation', (command) => {
+        const rotation = this.sceneManager.getModelRotation();
+        // Note: Response would need to be sent back via WebSocket for full implementation
+        // For now, just log it (MCP server will handle response)
+        console.log('Model rotation (Euler angles):', rotation);
+      }],
+      ['setModelRotation', (command) => {
+        this.sceneManager.setModelRotation(
+          command.x,
+          command.y,
+          command.z
+        );
+      }],
+      ['rotateModelClockwise', (command) => {
+        this.sceneManager.rotateModelClockwise(command.degrees);
+      }],
+      ['rotateModelCounterclockwise', (command) => {
+        this.sceneManager.rotateModelCounterclockwise(command.degrees);
+      }],
+      ['nudgeModelPitchUp', (command) => {
+        this.sceneManager.nudgeModelPitchUp(command.degrees);
+      }],
+      ['nudgeModelPitchDown', (command) => {
+        this.sceneManager.nudgeModelPitchDown(command.degrees);
+      }],
+      ['nudgeModelRoll', (command) => {
+        this.sceneManager.nudgeModelRoll(command.degrees);
+      }],
+      // Key light relative adjustment commands
+      ['rotateKeyLightClockwise', (command) => {
+        this.sceneManager.rotateKeyLightClockwise(command.degrees);
+      }],
+      ['rotateKeyLightCounterclockwise', (command) => {
+        this.sceneManager.rotateKeyLightCounterclockwise(command.degrees);
+      }],
+      ['nudgeKeyLightElevationUp', (command) => {
+        this.sceneManager.nudgeKeyLightElevationUp(command.degrees);
+      }],
+      ['nudgeKeyLightElevationDown', (command) => {
+        this.sceneManager.nudgeKeyLightElevationDown(command.degrees);
+      }],
+      ['moveKeyLightTowardDirection', (command) => {
+        this.sceneManager.moveKeyLightTowardDirection(
+          command.direction,
+          command.degrees
+        );
+      }],
+      // Fill light relative adjustment commands
+      ['rotateFillLightClockwise', (command) => {
+        this.sceneManager.rotateFillLightClockwise(command.degrees);
+      }],
+      ['rotateFillLightCounterclockwise', (command) => {
+        this.sceneManager.rotateFillLightCounterclockwise(command.degrees);
+      }],
+      ['nudgeFillLightElevationUp', (command) => {
+        this.sceneManager.nudgeFillLightElevationUp(command.degrees);
+      }],
+      ['nudgeFillLightElevationDown', (command) => {
+        this.sceneManager.nudgeFillLightElevationDown(command.degrees);
+      }],
+      ['moveFillLightTowardDirection', (command) => {
+        this.sceneManager.moveFillLightTowardDirection(
+          command.direction,
+          command.degrees
+        );
       }]
     ]);
   }

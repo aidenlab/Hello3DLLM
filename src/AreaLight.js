@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from './constants.js';
-import { sphericalToCartesian, cartesianToSpherical } from './utils/coordinates/CoordinateSystem.js';
+import { sphericalToCartesian, cartesianToSpherical, directionToAzimuthAngle } from './utils/coordinates/CoordinateSystem.js';
 
 /**
  * Represents an area light (RectAreaLight) for key or fill lighting
@@ -287,7 +287,7 @@ export class AreaLight {
   /**
    * Gets the current light position as camera-centric spherical coordinates
    * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
-   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates
+   * @returns {{azimuth: number, elevation: number, distance: number}} Spherical coordinates (numeric values only)
    */
   getPositionSpherical(camera) {
     if (!this.areaLight || !this.parentGroup || !camera) {
@@ -304,6 +304,104 @@ export class AreaLight {
       relativePosition.z,
       camera
     );
+  }
+
+  /**
+   * Rotates the light clockwise (decreases azimuth) relative to current position
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  rotateClockwise(degrees = 10, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    const current = this.getPositionSpherical(camera);
+    const newAzimuth = (current.azimuth - degrees + 360) % 360;
+    this.setPositionSpherical(newAzimuth, current.elevation, camera);
+  }
+
+  /**
+   * Rotates the light counterclockwise (increases azimuth) relative to current position
+   * @param {number} degrees - Amount to rotate in degrees (defaults to 10°)
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  rotateCounterclockwise(degrees = 10, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    const current = this.getPositionSpherical(camera);
+    const newAzimuth = (current.azimuth + degrees) % 360;
+    this.setPositionSpherical(newAzimuth, current.elevation, camera);
+  }
+
+  /**
+   * Adjusts the light elevation upward relative to current position
+   * @param {number} degrees - Amount to increase elevation in degrees (defaults to 5°)
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  nudgeElevationUp(degrees = 5, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    const current = this.getPositionSpherical(camera);
+    const newElevation = Math.min(90, current.elevation + degrees);
+    this.setPositionSpherical(current.azimuth, newElevation, camera);
+  }
+
+  /**
+   * Adjusts the light elevation downward relative to current position
+   * @param {number} degrees - Amount to decrease elevation in degrees (defaults to 5°)
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  nudgeElevationDown(degrees = 5, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    const current = this.getPositionSpherical(camera);
+    const newElevation = Math.max(0, current.elevation - degrees);
+    this.setPositionSpherical(current.azimuth, newElevation, camera);
+  }
+
+  /**
+   * Moves the light toward a specific direction relative to current position
+   * @param {number|string} targetDirection - Target direction (numeric azimuth or direction name)
+   * @param {number} degrees - Amount to move toward target in degrees (defaults to 10°)
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  moveTowardDirection(targetDirection, degrees = 10, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    // Convert direction name to numeric azimuth if needed
+    const targetAzimuth = directionToAzimuthAngle(targetDirection);
+    if (targetAzimuth === null) {
+      // If not a valid direction, treat as numeric
+      const numValue = typeof targetDirection === 'number' ? targetDirection : parseFloat(targetDirection);
+      if (isNaN(numValue)) {
+        return; // Invalid direction
+      }
+      var targetAzimuthNum = numValue;
+    } else {
+      var targetAzimuthNum = targetAzimuth;
+    }
+
+    const current = this.getPositionSpherical(camera);
+    
+    // Calculate shortest angular distance to target
+    let diff = targetAzimuthNum - current.azimuth;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    
+    // Move toward target by specified amount
+    const moveAmount = Math.sign(diff) * Math.min(Math.abs(diff), degrees);
+    const newAzimuth = (current.azimuth + moveAmount + 360) % 360;
+    
+    this.setPositionSpherical(newAzimuth, current.elevation, camera);
   }
 
   /**

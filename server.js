@@ -1015,6 +1015,647 @@ mcpServer.registerTool(
   }
 );
 
+// Camera control tools
+mcpServer.registerTool(
+  'dolly_camera',
+  {
+    title: 'Dolly Camera',
+    description: 'Set the camera distance from the origin (dollying). Moves the camera closer or farther from the subject.',
+    inputSchema: {
+      distance: z.number().positive().describe('Distance from origin (camera position.z)')
+    }
+  },
+  async ({ distance }) => {
+    routeToCurrentSession({
+      type: 'dollyCamera',
+      distance: distance
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Camera distance set to ${distance}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'dolly_camera_in',
+  {
+    title: 'Dolly Camera In',
+    description: 'Move the camera closer to the subject (dolly in)',
+    inputSchema: {
+      amount: z.number().positive().optional().describe('Optional amount to move closer (defaults to configured dolly speed)')
+    }
+  },
+  async ({ amount }) => {
+    routeToCurrentSession({
+      type: 'dollyCameraIn',
+      amount: amount
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: amount ? `Camera moved ${amount} units closer` : 'Camera moved closer'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'dolly_camera_out',
+  {
+    title: 'Dolly Camera Out',
+    description: 'Move the camera farther from the subject (dolly out)',
+    inputSchema: {
+      amount: z.number().positive().optional().describe('Optional amount to move farther (defaults to configured dolly speed)')
+    }
+  },
+  async ({ amount }) => {
+    routeToCurrentSession({
+      type: 'dollyCameraOut',
+      amount: amount
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: amount ? `Camera moved ${amount} units farther` : 'Camera moved farther'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_camera_fov',
+  {
+    title: 'Set Camera Field of View',
+    description: 'Set the camera field of view (FOV). Lower values = wider angle (more of scene visible), higher values = narrower angle (more zoomed in).',
+    inputSchema: {
+      fov: z.number().positive().describe('Field of view value (typically 0.5-5.0, where lower = wider angle)')
+    }
+  },
+  async ({ fov }) => {
+    routeToCurrentSession({
+      type: 'setCameraFOV',
+      fov: fov
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Camera field of view set to ${fov}`
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'increase_camera_fov',
+  {
+    title: 'Increase Camera Field of View',
+    description: 'Increase the camera field of view (wider angle, see more of the scene)',
+    inputSchema: {
+      amount: z.number().positive().optional().describe('Optional amount to increase (defaults to configured FOV speed)')
+    }
+  },
+  async ({ amount }) => {
+    routeToCurrentSession({
+      type: 'increaseCameraFOV',
+      amount: amount
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: amount ? `Camera FOV increased by ${amount}` : 'Camera FOV increased (wider angle)'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'decrease_camera_fov',
+  {
+    title: 'Decrease Camera Field of View',
+    description: 'Decrease the camera field of view (narrower angle, more zoomed in)',
+    inputSchema: {
+      amount: z.number().positive().optional().describe('Optional amount to decrease (defaults to configured FOV speed)')
+    }
+  },
+  async ({ amount }) => {
+    routeToCurrentSession({
+      type: 'decreaseCameraFOV',
+      amount: amount
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: amount ? `Camera FOV decreased by ${amount}` : 'Camera FOV decreased (more zoomed in)'
+        }
+      ]
+    };
+  }
+);
+
+// Model rotation tools
+mcpServer.registerTool(
+  'get_model_rotation',
+  {
+    title: 'Get Model Rotation',
+    description: 'Get the current model rotation as Euler angles in degrees (XYZ order). Returns pitch (x), yaw (y), and roll (z) angles.',
+    inputSchema: {}
+  },
+  async () => {
+    // Note: This requires bidirectional WebSocket communication to query browser state
+    // For now, return a message indicating the feature needs browser response capability
+    // In a full implementation, this would send a query command and wait for response
+    routeToCurrentSession({
+      type: 'getModelRotation'
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Query sent to browser. Current rotation logged in browser console. Full bidirectional query support coming soon.'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'set_model_rotation',
+  {
+    title: 'Set Model Rotation',
+    description: 'Set the model rotation using Euler angles in degrees (XYZ order). X = pitch (rotation around X axis), Y = yaw (rotation around Y axis), Z = roll (rotation around Z axis).',
+    inputSchema: {
+      x: z.number().describe('Rotation around X axis in degrees (pitch)'),
+      y: z.number().describe('Rotation around Y axis in degrees (yaw)'),
+      z: z.number().describe('Rotation around Z axis in degrees (roll)')
+    }
+  },
+  async ({ x, y, z }) => {
+    routeToCurrentSession({
+      type: 'setModelRotation',
+      x: x,
+      y: y,
+      z: z
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Model rotation set to X: ${x}°, Y: ${y}°, Z: ${z}°`
+        }
+      ]
+    };
+  }
+);
+
+// Model rotation relative adjustment tools
+mcpServer.registerTool(
+  'rotate_model_clockwise',
+  {
+    title: 'Rotate Model Clockwise',
+    description: 'Rotate the model clockwise around Y axis (yaw) relative to current rotation. This is a relative adjustment - retrieve state first to see current rotation.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'rotateModelClockwise',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Model rotated ${degrees}° clockwise` : 'Model rotated 10° clockwise'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'rotate_model_counterclockwise',
+  {
+    title: 'Rotate Model Counterclockwise',
+    description: 'Rotate the model counterclockwise around Y axis (yaw) relative to current rotation. This is a relative adjustment - retrieve state first to see current rotation.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'rotateModelCounterclockwise',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Model rotated ${degrees}° counterclockwise` : 'Model rotated 10° counterclockwise'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_model_pitch_up',
+  {
+    title: 'Nudge Model Pitch Up',
+    description: 'Adjust the model pitch (X axis rotation) upward relative to current rotation. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to increase pitch in degrees (defaults to 5°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeModelPitchUp',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Model pitch increased by ${degrees}°` : 'Model pitch increased by 5°'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_model_pitch_down',
+  {
+    title: 'Nudge Model Pitch Down',
+    description: 'Adjust the model pitch (X axis rotation) downward relative to current rotation. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to decrease pitch in degrees (defaults to 5°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeModelPitchDown',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Model pitch decreased by ${degrees}°` : 'Model pitch decreased by 5°'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_model_roll',
+  {
+    title: 'Nudge Model Roll',
+    description: 'Adjust the model roll (Z axis rotation) relative to current rotation. Positive values rotate clockwise. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().optional().describe('Amount to adjust roll in degrees (defaults to 5°, positive = clockwise)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeModelRoll',
+      degrees: degrees !== undefined ? degrees : 5
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Model roll adjusted by ${degrees}°` : 'Model roll adjusted by 5° clockwise'
+        }
+      ]
+    };
+  }
+);
+
+// Key light relative adjustment tools
+mcpServer.registerTool(
+  'rotate_key_light_clockwise',
+  {
+    title: 'Rotate Key Light Clockwise',
+    description: 'Rotate the key light clockwise (decreases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'rotateKeyLightClockwise',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Key light rotated ${degrees}° clockwise` : 'Key light rotated 10° clockwise'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'rotate_key_light_counterclockwise',
+  {
+    title: 'Rotate Key Light Counterclockwise',
+    description: 'Rotate the key light counterclockwise (increases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'rotateKeyLightCounterclockwise',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Key light rotated ${degrees}° counterclockwise` : 'Key light rotated 10° counterclockwise'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_key_light_elevation_up',
+  {
+    title: 'Nudge Key Light Elevation Up',
+    description: 'Adjust the key light elevation upward relative to current position. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to increase elevation in degrees (defaults to 5°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeKeyLightElevationUp',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Key light elevation increased by ${degrees}°` : 'Key light elevation increased by 5°'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_key_light_elevation_down',
+  {
+    title: 'Nudge Key Light Elevation Down',
+    description: 'Adjust the key light elevation downward relative to current position. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to decrease elevation in degrees (defaults to 5°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeKeyLightElevationDown',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Key light elevation decreased by ${degrees}°` : 'Key light elevation decreased by 5°'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'move_key_light_toward_direction',
+  {
+    title: 'Move Key Light Toward Direction',
+    description: `Move the key light toward a specific direction relative to current position. This is a relative adjustment - moves toward the target direction by the specified amount. Available directions: ${availableDirectionNames}.`,
+    inputSchema: {
+      direction: azimuthSchema,
+      degrees: z.number().positive().optional().describe('Amount to move toward target direction in degrees (defaults to 10°)')
+    }
+  },
+  async ({ direction, degrees }) => {
+    // Convert direction name to numeric azimuth if needed
+    const directionValue = parseAzimuth(direction);
+    if (directionValue === null && typeof direction !== 'number') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid direction: ${direction}. Must be a number (0-360) or a direction name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    routeToCurrentSession({
+      type: 'moveKeyLightTowardDirection',
+      direction: typeof direction === 'number' ? direction : directionValue,
+      degrees: degrees
+    });
+
+    const directionDisplay = typeof direction === 'string' ? direction : `${direction}°`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Key light moved ${degrees}° toward ${directionDisplay}` : `Key light moved 10° toward ${directionDisplay}`
+        }
+      ]
+    };
+  }
+);
+
+// Fill light relative adjustment tools
+mcpServer.registerTool(
+  'rotate_fill_light_clockwise',
+  {
+    title: 'Rotate Fill Light Clockwise',
+    description: 'Rotate the fill light clockwise (decreases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'rotateFillLightClockwise',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Fill light rotated ${degrees}° clockwise` : 'Fill light rotated 10° clockwise'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'rotate_fill_light_counterclockwise',
+  {
+    title: 'Rotate Fill Light Counterclockwise',
+    description: 'Rotate the fill light counterclockwise (increases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'rotateFillLightCounterclockwise',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Fill light rotated ${degrees}° counterclockwise` : 'Fill light rotated 10° counterclockwise'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_fill_light_elevation_up',
+  {
+    title: 'Nudge Fill Light Elevation Up',
+    description: 'Adjust the fill light elevation upward relative to current position. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to increase elevation in degrees (defaults to 5°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeFillLightElevationUp',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Fill light elevation increased by ${degrees}°` : 'Fill light elevation increased by 5°'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'nudge_fill_light_elevation_down',
+  {
+    title: 'Nudge Fill Light Elevation Down',
+    description: 'Adjust the fill light elevation downward relative to current position. This is a relative adjustment.',
+    inputSchema: {
+      degrees: z.number().positive().optional().describe('Amount to decrease elevation in degrees (defaults to 5°)')
+    }
+  },
+  async ({ degrees }) => {
+    routeToCurrentSession({
+      type: 'nudgeFillLightElevationDown',
+      degrees: degrees
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Fill light elevation decreased by ${degrees}°` : 'Fill light elevation decreased by 5°'
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.registerTool(
+  'move_fill_light_toward_direction',
+  {
+    title: 'Move Fill Light Toward Direction',
+    description: `Move the fill light toward a specific direction relative to current position. This is a relative adjustment - moves toward the target direction by the specified amount. Available directions: ${availableDirectionNames}.`,
+    inputSchema: {
+      direction: azimuthSchema,
+      degrees: z.number().positive().optional().describe('Amount to move toward target direction in degrees (defaults to 10°)')
+    }
+  },
+  async ({ direction, degrees }) => {
+    // Convert direction name to numeric azimuth if needed
+    const directionValue = parseAzimuth(direction);
+    if (directionValue === null && typeof direction !== 'number') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Invalid direction: ${direction}. Must be a number (0-360) or a direction name.`
+          }
+        ],
+        isError: true
+      };
+    }
+
+    routeToCurrentSession({
+      type: 'moveFillLightTowardDirection',
+      direction: typeof direction === 'number' ? direction : directionValue,
+      degrees: degrees
+    });
+
+    const directionDisplay = typeof direction === 'string' ? direction : `${direction}°`;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: degrees ? `Fill light moved ${degrees}° toward ${directionDisplay}` : `Fill light moved 10° toward ${directionDisplay}`
+        }
+      ]
+    };
+  }
+);
+
 // Register tool: get_browser_connection_url
 mcpServer.registerTool(
   'get_browser_connection_url',
