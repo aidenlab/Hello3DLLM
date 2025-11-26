@@ -23,11 +23,13 @@
 
 ### Before Testing
 
-1. **Start the MCP Server**
-   ```bash
-   node server.js
-   ```
-   Verify it's listening on ports 3000 (MCP) and 3001 (WebSocket)
+1. **Start the MCP Server** (if using ChatGPT)
+   - For Claude Desktop: The server is automatically started by Claude, no manual action needed
+   - For ChatGPT: Manually start the server:
+     ```bash
+     node server.js
+     ```
+     Verify it's listening on ports 3000 (MCP) and 3001 (WebSocket)
 
 2. **Open Browser App**
    - Navigate to the app URL with a session ID
