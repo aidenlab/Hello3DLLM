@@ -175,6 +175,14 @@ export class SceneManager {
   }
 
   /**
+   * Sets the camera controller reference (called by Application after initialization)
+   * @param {CameraController} cameraController - The camera controller instance
+   */
+  setCameraController(cameraController) {
+    this.cameraController = cameraController;
+  }
+
+  /**
    * Sets the rotation controller reference (called by Application after initialization)
    * @param {RotationController} rotationController - The rotation controller instance
    */
@@ -193,6 +201,34 @@ export class SceneManager {
       return this.rotationController.getRotationEuler();
     }
     return { x: 0, y: 0, z: 0 };
+  }
+
+  /**
+   * Gets the current model color
+   * @returns {string} Hex color code (e.g., "#ff0000")
+   */
+  getModelColor() {
+    if (this.model) {
+      const color = this.model.getMaterial().color;
+      return '#' + color.getHexString().padStart(6, '0');
+    }
+    return '#808080'; // Default color
+  }
+
+  /**
+   * Gets the current model scale in each dimension
+   * @returns {{x: number, y: number, z: number}} Scale factors (positive numbers)
+   */
+  getModelScale() {
+    if (this.model) {
+      const scale = this.model.getMesh().scale;
+      return {
+        x: scale.x,
+        y: scale.y,
+        z: scale.z
+      };
+    }
+    return { x: 1, y: 1, z: 1 }; // Default scale
   }
 
   /**
@@ -309,6 +345,19 @@ export class SceneManager {
     this.scene.background = new THREE.Color(hexColor);
   }
 
+  /**
+   * Gets the current scene background color
+   * @returns {string} Hex color code (e.g., "#000000")
+   */
+  getBackgroundColor() {
+    if (this.scene && this.scene.background) {
+      if (this.scene.background instanceof THREE.Color) {
+        return '#' + this.scene.background.getHexString().padStart(6, '0');
+      }
+    }
+    return '#000000'; // Default black
+  }
+
   // Key light control methods
   setKeyLightIntensity(intensity) {
     if (this.keyLight) {
@@ -372,6 +421,44 @@ export class SceneManager {
     return { azimuth: 0, elevation: 0, distance: 0 };
   }
 
+  /**
+   * Gets the current key light intensity
+   * @returns {number} Intensity value (0.0 or higher)
+   */
+  getKeyLightIntensity() {
+    if (this.keyLight) {
+      return this.keyLight.getLightObject().intensity;
+    }
+    return 0;
+  }
+
+  /**
+   * Gets the current key light color
+   * @returns {string} Hex color code (e.g., "#ffffff")
+   */
+  getKeyLightColor() {
+    if (this.keyLight) {
+      const color = this.keyLight.getLightObject().color;
+      return '#' + color.getHexString().padStart(6, '0');
+    }
+    return '#ffffff'; // Default white
+  }
+
+  /**
+   * Gets the current key light area size
+   * @returns {{width: number, height: number}} Size in units (positive numbers)
+   */
+  getKeyLightSize() {
+    if (this.keyLight) {
+      const light = this.keyLight.getLightObject();
+      return {
+        width: light.width,
+        height: light.height
+      };
+    }
+    return { width: 1, height: 1 }; // Default size
+  }
+
   // Fill light control methods
   setFillLightIntensity(intensity) {
     if (this.fillLight) {
@@ -433,6 +520,44 @@ export class SceneManager {
       return this.fillLight.getPositionSpherical(this.camera);
     }
     return { azimuth: 0, elevation: 0, distance: 0 };
+  }
+
+  /**
+   * Gets the current fill light intensity
+   * @returns {number} Intensity value (0.0 or higher)
+   */
+  getFillLightIntensity() {
+    if (this.fillLight) {
+      return this.fillLight.getLightObject().intensity;
+    }
+    return 0;
+  }
+
+  /**
+   * Gets the current fill light color
+   * @returns {string} Hex color code (e.g., "#ffffff")
+   */
+  getFillLightColor() {
+    if (this.fillLight) {
+      const color = this.fillLight.getLightObject().color;
+      return '#' + color.getHexString().padStart(6, '0');
+    }
+    return '#ffffff'; // Default white
+  }
+
+  /**
+   * Gets the current fill light area size
+   * @returns {{width: number, height: number}} Size in units (positive numbers)
+   */
+  getFillLightSize() {
+    if (this.fillLight) {
+      const light = this.fillLight.getLightObject();
+      return {
+        width: light.width,
+        height: light.height
+      };
+    }
+    return { width: 1, height: 1 }; // Default size
   }
 
   // Key light relative adjustment methods
@@ -538,6 +663,26 @@ export class SceneManager {
   moveFillLightTowardDirection(targetDirection, degrees = 10) {
     if (this.fillLight && this.camera) {
       this.fillLight.moveTowardDirection(targetDirection, degrees, this.camera);
+    }
+  }
+
+  /**
+   * Sets the key light distance from model origin (preserves azimuth and elevation)
+   * @param {number} distance - Radial distance from model origin
+   */
+  setKeyLightDistance(distance) {
+    if (this.keyLight && this.camera) {
+      this.keyLight.setDistance(distance, this.camera);
+    }
+  }
+
+  /**
+   * Sets the fill light distance from model origin (preserves azimuth and elevation)
+   * @param {number} distance - Radial distance from model origin
+   */
+  setFillLightDistance(distance) {
+    if (this.fillLight && this.camera) {
+      this.fillLight.setDistance(distance, this.camera);
     }
   }
 

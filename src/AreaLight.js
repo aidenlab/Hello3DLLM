@@ -405,6 +405,32 @@ export class AreaLight {
   }
 
   /**
+   * Sets the light distance from model origin (preserves azimuth and elevation)
+   * @param {number} distance - Radial distance from model origin
+   * @param {THREE.PerspectiveCamera} camera - The camera (for camera-centric reference frame)
+   */
+  setDistance(distance, camera) {
+    if (!this.areaLight || !this.parentGroup || !camera) {
+      return;
+    }
+
+    // Get current azimuth and elevation
+    const current = this.getPositionSpherical(camera);
+    
+    // Convert spherical coordinates to Cartesian with new distance
+    // Preserves azimuth and elevation, only changes distance
+    const cartesian = sphericalToCartesian(current.azimuth, current.elevation, distance, camera);
+    
+    // Set position relative to parent group (which is at model origin)
+    this.areaLight.position.set(cartesian.x, cartesian.y, cartesian.z);
+    
+    // Update the light's lookAt to maintain target orientation
+    const config = this.type === 'key' ? CONFIG.LIGHTING.KEY_LIGHT : CONFIG.LIGHTING.FILL_LIGHT;
+    const targetPosition = config.TARGET || { x: 0, y: 0, z: 0 };
+    this.areaLight.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);
+  }
+
+  /**
    * Sets the light position using Cartesian coordinates (relative to model origin)
    * @param {number} x - X coordinate relative to model origin
    * @param {number} y - Y coordinate relative to model origin
