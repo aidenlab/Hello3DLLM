@@ -2883,11 +2883,6 @@ mcpServer.registerTool(
     const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
     const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
 
-    // Query fresh state before manipulation
-    const state = await queryFreshStateForManipulation(sessionId);
-    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
-    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
-
     routeToCurrentSession({
       type: 'moveFillLightTowardDirection',
       direction: typeof direction === 'number' ? direction : directionValue,
