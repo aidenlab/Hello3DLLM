@@ -326,33 +326,76 @@ async function queryStateFromBrowser(sessionId, forceRefresh = false) {
 
 // Get state (cached or fresh)
 async function getState(sessionId, forceRefresh = false) {
+  let state;
+  let source;
+  let wasCached = false;
+  
   // If force refresh, always query browser
   if (forceRefresh) {
     try {
-      return await queryStateFromBrowser(sessionId, true);
+      state = await queryStateFromBrowser(sessionId, true);
+      source = 'fresh';
     } catch (error) {
       // If force refresh fails, fall back to cache if available
       const cached = sessionStateCache.get(sessionId);
       if (cached) {
         console.warn(`Force refresh failed for session ${sessionId}, returning cached state: ${error.message}`);
-        return cached.state;
+        state = cached.state;
+        source = 'cache';
+        wasCached = true;
+      } else {
+        throw error;
       }
-      throw error;
+    }
+  } else {
+    // Otherwise, return cached state if available
+    const cached = sessionStateCache.get(sessionId);
+    if (cached) {
+      state = cached.state;
+      source = 'cache';
+      wasCached = true;
+    } else {
+      // No cache, query browser
+      try {
+        state = await queryStateFromBrowser(sessionId, false);
+        source = 'fresh';
+      } catch (error) {
+        // If query fails and no cache, throw error
+        throw new Error(`Unable to retrieve state: ${error.message}. Browser may be disconnected.`);
+      }
     }
   }
   
-  // Otherwise, return cached state if available
-  const cached = sessionStateCache.get(sessionId);
-  if (cached) {
-    return cached.state;
-  }
+  // Return state with metadata
+  return {
+    state,
+    metadata: {
+      source,
+      wasCached,
+      timestamp: new Date().toISOString()
+    }
+  };
+}
+
+// Format state response with metadata for tool responses
+function formatStateResponse(value, propertyName, sessionId, forceRefresh, metadata) {
+  const timestamp = metadata.timestamp;
+  const source = metadata.source;
+  const stalenessWarning = metadata.wasCached 
+    ? ' (may be stale if user manually interacted)' 
+    : '';
   
-  // No cache, query browser
+  return `${propertyName}: ${value} (queried at ${timestamp}, source: ${source}${stalenessWarning})`;
+}
+
+// Helper function to query fresh state before relative manipulations
+async function queryFreshStateForManipulation(sessionId) {
   try {
-    return await queryStateFromBrowser(sessionId, false);
+    const { state } = await getState(sessionId, true); // Always force refresh
+    return state;
   } catch (error) {
-    // If query fails and no cache, throw error
-    throw new Error(`Unable to retrieve state: ${error.message}. Browser may be disconnected.`);
+    console.warn(`Failed to query fresh state before manipulation: ${error.message}`);
+    return null;
   }
 }
 
@@ -569,9 +612,15 @@ mcpServer.registerTool(
   'get_background_color',
   {
     title: 'Get Background Color',
-    description: 'Get the current scene background color as a hex color code (e.g., "#000000")',
+    description: 'Get the current scene background color as a hex color code (e.g., "#000000"). ' +
+      'Query this before relative color changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -589,14 +638,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const color = state.background || '#000000';
       
       return {
         content: [
           {
             type: 'text',
-            text: `Background color: ${color}`
+            text: formatStateResponse(color, 'Background color', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1134,9 +1183,15 @@ mcpServer.registerTool(
   'get_key_light_position_spherical',
   {
     title: 'Get Key Light Position (Spherical Coordinates)',
-    description: 'Get the current key light position in camera-centric spherical coordinates',
+    description: 'Get the current key light position in camera-centric spherical coordinates. ' +
+      'Query this before relative position changes (e.g., "rotate light 10 degrees") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1154,14 +1209,15 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const position = state.keyLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+      const positionText = `azimuth ${position.azimuth}°, elevation ${position.elevation}°, distance ${position.distance}`;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Key light position: azimuth ${position.azimuth}°, elevation ${position.elevation}°, distance ${position.distance}`
+            text: formatStateResponse(positionText, 'Key light position', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1183,9 +1239,15 @@ mcpServer.registerTool(
   'get_key_light_intensity',
   {
     title: 'Get Key Light Intensity',
-    description: 'Get the current key light intensity value (0.0 or higher)',
+    description: 'Get the current key light intensity value (0.0 or higher). ' +
+      'Query this before relative intensity changes (e.g., "increase by 0.5") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1203,14 +1265,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const intensity = state.keyLight?.intensity ?? 0;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Key light intensity: ${intensity}`
+            text: formatStateResponse(intensity.toString(), 'Key light intensity', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1232,9 +1294,15 @@ mcpServer.registerTool(
   'get_key_light_color',
   {
     title: 'Get Key Light Color',
-    description: 'Get the current key light color as a hex color code (e.g., "#ffffff")',
+    description: 'Get the current key light color as a hex color code (e.g., "#ffffff"). ' +
+      'Query this before relative color changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1252,14 +1320,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const color = state.keyLight?.color || '#ffffff';
       
       return {
         content: [
           {
             type: 'text',
-            text: `Key light color: ${color}`
+            text: formatStateResponse(color, 'Key light color', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1281,9 +1349,15 @@ mcpServer.registerTool(
   'get_key_light_size',
   {
     title: 'Get Key Light Size',
-    description: 'Get the current key light area size (width and height in units)',
+    description: 'Get the current key light area size (width and height in units). ' +
+      'Query this before relative size changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1301,14 +1375,15 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const size = state.keyLight?.size || { width: 1, height: 1 };
+      const sizeText = `width ${size.width}, height ${size.height}`;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Key light size: width ${size.width}, height ${size.height}`
+            text: formatStateResponse(sizeText, 'Key light size', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1373,9 +1448,15 @@ mcpServer.registerTool(
   'get_fill_light_position_spherical',
   {
     title: 'Get Fill Light Position (Spherical Coordinates)',
-    description: 'Get the current fill light position in camera-centric spherical coordinates',
+    description: 'Get the current fill light position in camera-centric spherical coordinates. ' +
+      'Query this before relative position changes (e.g., "rotate light 10 degrees") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1393,14 +1474,15 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const position = state.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+      const positionText = `azimuth ${position.azimuth}°, elevation ${position.elevation}°, distance ${position.distance}`;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Fill light position: azimuth ${position.azimuth}°, elevation ${position.elevation}°, distance ${position.distance}`
+            text: formatStateResponse(positionText, 'Fill light position', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1422,9 +1504,15 @@ mcpServer.registerTool(
   'get_fill_light_intensity',
   {
     title: 'Get Fill Light Intensity',
-    description: 'Get the current fill light intensity value (0.0 or higher)',
+    description: 'Get the current fill light intensity value (0.0 or higher). ' +
+      'Query this before relative intensity changes (e.g., "increase by 0.5") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1442,14 +1530,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const intensity = state.fillLight?.intensity ?? 0;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Fill light intensity: ${intensity}`
+            text: formatStateResponse(intensity.toString(), 'Fill light intensity', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1471,9 +1559,15 @@ mcpServer.registerTool(
   'get_fill_light_color',
   {
     title: 'Get Fill Light Color',
-    description: 'Get the current fill light color as a hex color code (e.g., "#ffffff")',
+    description: 'Get the current fill light color as a hex color code (e.g., "#ffffff"). ' +
+      'Query this before relative color changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1491,14 +1585,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const color = state.fillLight?.color || '#ffffff';
       
       return {
         content: [
           {
             type: 'text',
-            text: `Fill light color: ${color}`
+            text: formatStateResponse(color, 'Fill light color', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1520,9 +1614,15 @@ mcpServer.registerTool(
   'get_fill_light_size',
   {
     title: 'Get Fill Light Size',
-    description: 'Get the current fill light area size (width and height in units)',
+    description: 'Get the current fill light area size (width and height in units). ' +
+      'Query this before relative size changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1540,14 +1640,15 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const size = state.fillLight?.size || { width: 1, height: 1 };
+      const sizeText = `width ${size.width}, height ${size.height}`;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Fill light size: width ${size.width}, height ${size.height}`
+            text: formatStateResponse(sizeText, 'Fill light size', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1726,9 +1827,15 @@ mcpServer.registerTool(
   'get_camera_distance',
   {
     title: 'Get Camera Distance',
-    description: 'Get the current camera distance from origin (dolly position)',
+    description: 'Get the current camera distance from origin (dolly position). ' +
+      'Query this before relative distance changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1746,14 +1853,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const distance = state.camera?.distance ?? 0;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Camera distance: ${distance}`
+            text: formatStateResponse(distance.toString(), 'Camera distance', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1775,9 +1882,15 @@ mcpServer.registerTool(
   'get_camera_fov',
   {
     title: 'Get Camera Field of View',
-    description: 'Get the current camera field of view (FOV) value',
+    description: 'Get the current camera field of view (FOV) value. ' +
+      'Query this before relative FOV changes to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1795,14 +1908,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const fov = state.camera?.fov ?? 0;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Camera FOV: ${fov}`
+            text: formatStateResponse(fov.toString(), 'Camera FOV', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1825,9 +1938,15 @@ mcpServer.registerTool(
   'get_model_rotation',
   {
     title: 'Get Model Rotation',
-    description: 'Get the current model rotation as Euler angles in degrees (XYZ order). Returns pitch (x), yaw (y), and roll (z) angles.',
+    description: 'Get the current model rotation as Euler angles in degrees (XYZ order). Returns pitch (x), yaw (y), and roll (z) angles. ' +
+      'Query this before relative rotation changes (e.g., "rotate 10 degrees") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1845,14 +1964,15 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const rotation = state.model?.rotation || { x: 0, y: 0, z: 0 };
+      const rotationText = `X (pitch): ${rotation.x}°, Y (yaw): ${rotation.y}°, Z (roll): ${rotation.z}°`;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Model rotation: X (pitch): ${rotation.x}°, Y (yaw): ${rotation.y}°, Z (roll): ${rotation.z}°`
+            text: formatStateResponse(rotationText, 'Model rotation', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1874,9 +1994,15 @@ mcpServer.registerTool(
   'get_model_color',
   {
     title: 'Get Model Color',
-    description: 'Get the current model color as a hex color code (e.g., "#ff0000")',
+    description: 'Get the current model color as a hex color code (e.g., "#ff0000"). ' +
+      'Query this before relative color changes (e.g., "darken by 10%") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1894,14 +2020,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const color = state.model?.color || '#808080';
       
       return {
         content: [
           {
             type: 'text',
-            text: `Model color: ${color}`
+            text: formatStateResponse(color, 'Model color', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -1923,9 +2049,15 @@ mcpServer.registerTool(
   'get_model_scale',
   {
     title: 'Get Model Scale',
-    description: 'Get the current model scale in each dimension (x, y, z) as scale factors',
+    description: 'Get the current model scale in each dimension (x, y, z) as scale factors. ' +
+      'Query this before relative scale changes (e.g., "scale by 1.5x") to ensure accuracy. ' +
+      'For absolute changes, you may use recently queried state from context if no manual interactions occurred.',
     inputSchema: {
-      forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
+      forceRefresh: z.boolean().optional().describe(
+        'Force refresh from browser (defaults to false, uses cache). ' +
+        'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+        'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+      )
     }
   },
   async ({ forceRefresh = false }) => {
@@ -1943,14 +2075,15 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const scale = state.model?.scale || { x: 1, y: 1, z: 1 };
+      const scaleText = `X: ${scale.x}, Y: ${scale.y}, Z: ${scale.z}`;
       
       return {
         content: [
           {
             type: 'text',
-            text: `Model scale: X: ${scale.x}, Y: ${scale.y}, Z: ${scale.z}`
+            text: formatStateResponse(scaleText, 'Model scale', sessionId, forceRefresh, metadata)
           }
         ]
       };
@@ -2003,22 +2136,52 @@ mcpServer.registerTool(
   'rotate_model_clockwise',
   {
     title: 'Rotate Model Clockwise',
-    description: 'Rotate the model clockwise around Y axis (yaw) relative to current rotation. This is a relative adjustment - retrieve state first to see current rotation.',
+    description: 'Rotate the model clockwise around Y axis (yaw) relative to current rotation. ' +
+      'This tool automatically queries fresh state before performing the rotation to ensure accuracy, ' +
+      'even if the user has manually interacted with the model.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    let currentState = null;
+    try {
+      const { state } = await getState(sessionId, true); // forceRefresh: true
+      currentState = state.model?.rotation || { x: 0, y: 0, z: 0 };
+    } catch (error) {
+      // If state query fails, proceed anyway but note it in response
+      console.warn(`Failed to query state before rotation: ${error.message}`);
+    }
+
     routeToCurrentSession({
       type: 'rotateModelClockwise',
       degrees: degrees
     });
 
+    const rotationInfo = currentState 
+      ? ` (from current rotation: Y=${currentState.y}°)`
+      : '';
     return {
       content: [
         {
           type: 'text',
-          text: degrees ? `Model rotated ${degrees}° clockwise` : 'Model rotated 10° clockwise'
+          text: degrees 
+            ? `Model rotated ${degrees}° clockwise${rotationInfo}` 
+            : `Model rotated 10° clockwise${rotationInfo}`
         }
       ]
     };
@@ -2029,22 +2192,51 @@ mcpServer.registerTool(
   'rotate_model_counterclockwise',
   {
     title: 'Rotate Model Counterclockwise',
-    description: 'Rotate the model counterclockwise around Y axis (yaw) relative to current rotation. This is a relative adjustment - retrieve state first to see current rotation.',
+    description: 'Rotate the model counterclockwise around Y axis (yaw) relative to current rotation. ' +
+      'This tool automatically queries fresh state before performing the rotation to ensure accuracy, ' +
+      'even if the user has manually interacted with the model.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    let currentState = null;
+    try {
+      const { state } = await getState(sessionId, true); // forceRefresh: true
+      currentState = state.model?.rotation || { x: 0, y: 0, z: 0 };
+    } catch (error) {
+      console.warn(`Failed to query state before rotation: ${error.message}`);
+    }
+
     routeToCurrentSession({
       type: 'rotateModelCounterclockwise',
       degrees: degrees
     });
 
+    const rotationInfo = currentState 
+      ? ` (from current rotation: Y=${currentState.y}°)`
+      : '';
     return {
       content: [
         {
           type: 'text',
-          text: degrees ? `Model rotated ${degrees}° counterclockwise` : 'Model rotated 10° counterclockwise'
+          text: degrees 
+            ? `Model rotated ${degrees}° counterclockwise${rotationInfo}` 
+            : `Model rotated 10° counterclockwise${rotationInfo}`
         }
       ]
     };
@@ -2055,12 +2247,32 @@ mcpServer.registerTool(
   'nudge_model_pitch_up',
   {
     title: 'Nudge Model Pitch Up',
-    description: 'Adjust the model pitch (X axis rotation) upward relative to current rotation. This is a relative adjustment.',
+    description: 'Adjust the model pitch (X axis rotation) upward relative to current rotation. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually interacted with the model.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to increase pitch in degrees (defaults to 5°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentRotation = state?.model?.rotation || { x: 0, y: 0, z: 0 };
+    const rotationInfo = ` (from current pitch: X=${currentRotation.x}°)`;
+
     routeToCurrentSession({
       type: 'nudgeModelPitchUp',
       degrees: degrees
@@ -2070,7 +2282,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Model pitch increased by ${degrees}°` : 'Model pitch increased by 5°'
+          text: degrees 
+            ? `Model pitch increased by ${degrees}°${rotationInfo}` 
+            : `Model pitch increased by 5°${rotationInfo}`
         }
       ]
     };
@@ -2081,12 +2295,32 @@ mcpServer.registerTool(
   'nudge_model_pitch_down',
   {
     title: 'Nudge Model Pitch Down',
-    description: 'Adjust the model pitch (X axis rotation) downward relative to current rotation. This is a relative adjustment.',
+    description: 'Adjust the model pitch (X axis rotation) downward relative to current rotation. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually interacted with the model.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to decrease pitch in degrees (defaults to 5°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentRotation = state?.model?.rotation || { x: 0, y: 0, z: 0 };
+    const rotationInfo = ` (from current pitch: X=${currentRotation.x}°)`;
+
     routeToCurrentSession({
       type: 'nudgeModelPitchDown',
       degrees: degrees
@@ -2096,7 +2330,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Model pitch decreased by ${degrees}°` : 'Model pitch decreased by 5°'
+          text: degrees 
+            ? `Model pitch decreased by ${degrees}°${rotationInfo}` 
+            : `Model pitch decreased by 5°${rotationInfo}`
         }
       ]
     };
@@ -2107,12 +2343,32 @@ mcpServer.registerTool(
   'nudge_model_roll',
   {
     title: 'Nudge Model Roll',
-    description: 'Adjust the model roll (Z axis rotation) relative to current rotation. Positive values rotate clockwise. This is a relative adjustment.',
+    description: 'Adjust the model roll (Z axis rotation) relative to current rotation. Positive values rotate clockwise. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually interacted with the model.',
     inputSchema: {
       degrees: z.number().optional().describe('Amount to adjust roll in degrees (defaults to 5°, positive = clockwise)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentRotation = state?.model?.rotation || { x: 0, y: 0, z: 0 };
+    const rotationInfo = ` (from current roll: Z=${currentRotation.z}°)`;
+
     routeToCurrentSession({
       type: 'nudgeModelRoll',
       degrees: degrees !== undefined ? degrees : 5
@@ -2122,7 +2378,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Model roll adjusted by ${degrees}°` : 'Model roll adjusted by 5° clockwise'
+          text: degrees 
+            ? `Model roll adjusted by ${degrees}°${rotationInfo}` 
+            : `Model roll adjusted by 5° clockwise${rotationInfo}`
         }
       ]
     };
@@ -2134,12 +2392,32 @@ mcpServer.registerTool(
   'rotate_key_light_clockwise',
   {
     title: 'Rotate Key Light Clockwise',
-    description: 'Rotate the key light clockwise (decreases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    description: 'Rotate the key light clockwise (decreases azimuth) relative to current position. ' +
+      'This tool automatically queries fresh state before performing the rotation to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.keyLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
+
     routeToCurrentSession({
       type: 'rotateKeyLightClockwise',
       degrees: degrees
@@ -2149,7 +2427,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Key light rotated ${degrees}° clockwise` : 'Key light rotated 10° clockwise'
+          text: degrees 
+            ? `Key light rotated ${degrees}° clockwise${positionInfo}` 
+            : `Key light rotated 10° clockwise${positionInfo}`
         }
       ]
     };
@@ -2160,12 +2440,32 @@ mcpServer.registerTool(
   'rotate_key_light_counterclockwise',
   {
     title: 'Rotate Key Light Counterclockwise',
-    description: 'Rotate the key light counterclockwise (increases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    description: 'Rotate the key light counterclockwise (increases azimuth) relative to current position. ' +
+      'This tool automatically queries fresh state before performing the rotation to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.keyLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
+
     routeToCurrentSession({
       type: 'rotateKeyLightCounterclockwise',
       degrees: degrees
@@ -2175,7 +2475,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Key light rotated ${degrees}° counterclockwise` : 'Key light rotated 10° counterclockwise'
+          text: degrees 
+            ? `Key light rotated ${degrees}° counterclockwise${positionInfo}` 
+            : `Key light rotated 10° counterclockwise${positionInfo}`
         }
       ]
     };
@@ -2186,12 +2488,32 @@ mcpServer.registerTool(
   'nudge_key_light_elevation_up',
   {
     title: 'Nudge Key Light Elevation Up',
-    description: 'Adjust the key light elevation upward relative to current position. This is a relative adjustment.',
+    description: 'Adjust the key light elevation upward relative to current position. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to increase elevation in degrees (defaults to 5°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.keyLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current elevation: ${currentPosition.elevation}°)`;
+
     routeToCurrentSession({
       type: 'nudgeKeyLightElevationUp',
       degrees: degrees
@@ -2201,7 +2523,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Key light elevation increased by ${degrees}°` : 'Key light elevation increased by 5°'
+          text: degrees 
+            ? `Key light elevation increased by ${degrees}°${positionInfo}` 
+            : `Key light elevation increased by 5°${positionInfo}`
         }
       ]
     };
@@ -2212,12 +2536,32 @@ mcpServer.registerTool(
   'nudge_key_light_elevation_down',
   {
     title: 'Nudge Key Light Elevation Down',
-    description: 'Adjust the key light elevation downward relative to current position. This is a relative adjustment.',
+    description: 'Adjust the key light elevation downward relative to current position. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to decrease elevation in degrees (defaults to 5°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.keyLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current elevation: ${currentPosition.elevation}°)`;
+
     routeToCurrentSession({
       type: 'nudgeKeyLightElevationDown',
       degrees: degrees
@@ -2227,7 +2571,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Key light elevation decreased by ${degrees}°` : 'Key light elevation decreased by 5°'
+          text: degrees 
+            ? `Key light elevation decreased by ${degrees}°${positionInfo}` 
+            : `Key light elevation decreased by 5°${positionInfo}`
         }
       ]
     };
@@ -2238,13 +2584,28 @@ mcpServer.registerTool(
   'move_key_light_toward_direction',
   {
     title: 'Move Key Light Toward Direction',
-    description: `Move the key light toward a specific direction relative to current position. This is a relative adjustment - moves toward the target direction by the specified amount. Available directions: ${availableDirectionNames}.`,
+    description: `Move the key light toward a specific direction relative to current position. ` +
+      `This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ` +
+      `even if the user has manually moved the light. Available directions: ${availableDirectionNames}.`,
     inputSchema: {
       direction: azimuthSchema,
       degrees: z.number().positive().optional().describe('Amount to move toward target direction in degrees (defaults to 10°)')
     }
   },
   async ({ direction, degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
     // Convert direction name to numeric azimuth if needed
     const directionValue = parseAzimuth(direction);
     if (directionValue === null && typeof direction !== 'number') {
@@ -2258,6 +2619,11 @@ mcpServer.registerTool(
         isError: true
       };
     }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.keyLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
 
     routeToCurrentSession({
       type: 'moveKeyLightTowardDirection',
@@ -2270,7 +2636,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Key light moved ${degrees}° toward ${directionDisplay}` : `Key light moved 10° toward ${directionDisplay}`
+          text: degrees 
+            ? `Key light moved ${degrees}° toward ${directionDisplay}${positionInfo}` 
+            : `Key light moved 10° toward ${directionDisplay}${positionInfo}`
         }
       ]
     };
@@ -2282,12 +2650,32 @@ mcpServer.registerTool(
   'rotate_fill_light_clockwise',
   {
     title: 'Rotate Fill Light Clockwise',
-    description: 'Rotate the fill light clockwise (decreases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    description: 'Rotate the fill light clockwise (decreases azimuth) relative to current position. ' +
+      'This tool automatically queries fresh state before performing the rotation to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
+
     routeToCurrentSession({
       type: 'rotateFillLightClockwise',
       degrees: degrees
@@ -2297,7 +2685,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Fill light rotated ${degrees}° clockwise` : 'Fill light rotated 10° clockwise'
+          text: degrees 
+            ? `Fill light rotated ${degrees}° clockwise${positionInfo}` 
+            : `Fill light rotated 10° clockwise${positionInfo}`
         }
       ]
     };
@@ -2308,12 +2698,32 @@ mcpServer.registerTool(
   'rotate_fill_light_counterclockwise',
   {
     title: 'Rotate Fill Light Counterclockwise',
-    description: 'Rotate the fill light counterclockwise (increases azimuth) relative to current position. This is a relative adjustment - retrieve state first to see current position.',
+    description: 'Rotate the fill light counterclockwise (increases azimuth) relative to current position. ' +
+      'This tool automatically queries fresh state before performing the rotation to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to rotate in degrees (defaults to 10°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
+
     routeToCurrentSession({
       type: 'rotateFillLightCounterclockwise',
       degrees: degrees
@@ -2323,7 +2733,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Fill light rotated ${degrees}° counterclockwise` : 'Fill light rotated 10° counterclockwise'
+          text: degrees 
+            ? `Fill light rotated ${degrees}° counterclockwise${positionInfo}` 
+            : `Fill light rotated 10° counterclockwise${positionInfo}`
         }
       ]
     };
@@ -2334,12 +2746,32 @@ mcpServer.registerTool(
   'nudge_fill_light_elevation_up',
   {
     title: 'Nudge Fill Light Elevation Up',
-    description: 'Adjust the fill light elevation upward relative to current position. This is a relative adjustment.',
+    description: 'Adjust the fill light elevation upward relative to current position. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to increase elevation in degrees (defaults to 5°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current elevation: ${currentPosition.elevation}°)`;
+
     routeToCurrentSession({
       type: 'nudgeFillLightElevationUp',
       degrees: degrees
@@ -2349,7 +2781,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Fill light elevation increased by ${degrees}°` : 'Fill light elevation increased by 5°'
+          text: degrees 
+            ? `Fill light elevation increased by ${degrees}°${positionInfo}` 
+            : `Fill light elevation increased by 5°${positionInfo}`
         }
       ]
     };
@@ -2360,12 +2794,32 @@ mcpServer.registerTool(
   'nudge_fill_light_elevation_down',
   {
     title: 'Nudge Fill Light Elevation Down',
-    description: 'Adjust the fill light elevation downward relative to current position. This is a relative adjustment.',
+    description: 'Adjust the fill light elevation downward relative to current position. ' +
+      'This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ' +
+      'even if the user has manually moved the light.',
     inputSchema: {
       degrees: z.number().positive().optional().describe('Amount to decrease elevation in degrees (defaults to 5°)')
     }
   },
   async ({ degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current elevation: ${currentPosition.elevation}°)`;
+
     routeToCurrentSession({
       type: 'nudgeFillLightElevationDown',
       degrees: degrees
@@ -2375,7 +2829,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Fill light elevation decreased by ${degrees}°` : 'Fill light elevation decreased by 5°'
+          text: degrees 
+            ? `Fill light elevation decreased by ${degrees}°${positionInfo}` 
+            : `Fill light elevation decreased by 5°${positionInfo}`
         }
       ]
     };
@@ -2386,13 +2842,28 @@ mcpServer.registerTool(
   'move_fill_light_toward_direction',
   {
     title: 'Move Fill Light Toward Direction',
-    description: `Move the fill light toward a specific direction relative to current position. This is a relative adjustment - moves toward the target direction by the specified amount. Available directions: ${availableDirectionNames}.`,
+    description: `Move the fill light toward a specific direction relative to current position. ` +
+      `This tool automatically queries fresh state before performing the adjustment to ensure accuracy, ` +
+      `even if the user has manually moved the light. Available directions: ${availableDirectionNames}.`,
     inputSchema: {
       direction: azimuthSchema,
       degrees: z.number().positive().optional().describe('Amount to move toward target direction in degrees (defaults to 10°)')
     }
   },
   async ({ direction, degrees }) => {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No active session found.'
+          }
+        ],
+        isError: true
+      };
+    }
+
     // Convert direction name to numeric azimuth if needed
     const directionValue = parseAzimuth(direction);
     if (directionValue === null && typeof direction !== 'number') {
@@ -2407,6 +2878,16 @@ mcpServer.registerTool(
       };
     }
 
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
+
+    // Query fresh state before manipulation
+    const state = await queryFreshStateForManipulation(sessionId);
+    const currentPosition = state?.fillLight?.position || { azimuth: 0, elevation: 0, distance: 0 };
+    const positionInfo = ` (from current azimuth: ${currentPosition.azimuth}°)`;
+
     routeToCurrentSession({
       type: 'moveFillLightTowardDirection',
       direction: typeof direction === 'number' ? direction : directionValue,
@@ -2418,7 +2899,9 @@ mcpServer.registerTool(
       content: [
         {
           type: 'text',
-          text: degrees ? `Fill light moved ${degrees}° toward ${directionDisplay}` : `Fill light moved 10° toward ${directionDisplay}`
+          text: degrees 
+            ? `Fill light moved ${degrees}° toward ${directionDisplay}${positionInfo}` 
+            : `Fill light moved 10° toward ${directionDisplay}${positionInfo}`
         }
       ]
     };

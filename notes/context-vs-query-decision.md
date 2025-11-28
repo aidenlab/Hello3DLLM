@@ -48,13 +48,26 @@ Claude will likely:
 
 ### The Problem: No Explicit Guidance
 
-Currently, tool descriptions don't strongly guide Claude on when to query vs. use context:
+**UPDATE (Implemented):** Tool descriptions have been enhanced to provide explicit guidance. The system now includes:
 
+1. **Enhanced `forceRefresh` descriptions** - All getter tools now have detailed guidance on when to use `forceRefresh: true` vs. `false`
+2. **State metadata in responses** - All state queries now include timestamps, source indicators (cache vs. fresh), and staleness warnings
+3. **Enhanced getter tool descriptions** - Guidance on when to query vs. use context
+4. **Enhanced relative manipulation tool descriptions** - Explicit instructions to query state before relative changes
+
+**Previous state:**
 ```javascript
 forceRefresh: z.boolean().optional().describe('Force refresh from browser (defaults to false, uses cache)')
 ```
 
-This description doesn't help Claude decide **when** to use `forceRefresh`. It just explains what it does.
+**Current implementation:**
+```javascript
+forceRefresh: z.boolean().optional().describe(
+  'Force refresh from browser (defaults to false, uses cache). ' +
+  'Set to true if: user manually interacted with the 3D app, state might have changed, ' +
+  'or accuracy is critical. Use false (default) if state was recently queried and no manual interactions occurred.'
+)
+```
 
 ## The Trade-Offs
 
@@ -166,9 +179,9 @@ Claude makes this decision **implicitly** based on:
 
 ## Improving the Decision-Making
 
-### Option 1: Enhanced Tool Descriptions
+### ✅ IMPLEMENTED: Enhanced Tool Descriptions
 
-Update tool descriptions to guide Claude:
+All `forceRefresh` parameters now include explicit guidance:
 
 ```javascript
 forceRefresh: z.boolean().optional().describe(
@@ -179,48 +192,42 @@ forceRefresh: z.boolean().optional().describe(
 )
 ```
 
-### Option 2: Explicit State Queries Before Manipulation
+### ✅ IMPLEMENTED: Explicit State Queries Before Manipulation
 
-Encourage Claude to query state before relative changes:
+All relative manipulation tools now include explicit instructions:
 
 ```javascript
-// In tool descriptions for manipulation tools
-description: 'Rotate the model clockwise. ' +
-  'Note: For relative changes, query current rotation first using get_model_rotation ' +
-  'to ensure accuracy, especially if user may have manually rotated the model.'
+description: 'Rotate the model clockwise around Y axis (yaw) relative to current rotation. ' +
+  'IMPORTANT: This is a relative adjustment. Always query current rotation using get_model_rotation ' +
+  'before calling this tool, especially if the user may have manually rotated the model. ' +
+  'Use forceRefresh: true if manual interaction is suspected.'
 ```
 
-### Option 3: State Timestamps
+### ✅ IMPLEMENTED: State Timestamps and Metadata
 
-Include timestamps in state responses to help Claude decide:
+All state responses now include timestamps, source indicators, and staleness warnings:
 
-```javascript
-return {
-  content: [{
-    type: 'text',
-    text: `Model color: ${color} (queried at ${new Date().toISOString()})`
-  }]
-};
+**Example response format:**
+```
+Model color: #ff0000 (queried at 2024-01-15T10:30:00.000Z, source: cache (may be stale if user manually interacted))
 ```
 
-Claude could then decide: "This state is 5 minutes old, I should refresh it."
+**Implementation details:**
+- `getState()` function now returns `{ state, metadata }` where metadata includes:
+  - `source`: 'cache' or 'fresh'
+  - `wasCached`: boolean indicating if cache was used
+  - `timestamp`: ISO timestamp of when state was queried
+- `formatStateResponse()` helper function formats all state responses with metadata
+- All 14 getter tools now use this formatting
 
-### Option 4: "State Staleness" Indicators
+### ✅ IMPLEMENTED: Enhanced Getter Tool Descriptions
 
-Add metadata about state freshness:
+All getter tools now include guidance on when to query vs. use context:
 
 ```javascript
-return {
-  content: [{
-    type: 'text',
-    text: `Model color: ${color}`,
-    metadata: {
-      source: 'cache', // or 'fresh'
-      timestamp: Date.now(),
-      stalenessWarning: 'State may be stale if user manually interacted with the app'
-    }
-  }]
-};
+description: 'Get the current model color as a hex color code (e.g., "#ff0000"). ' +
+  'Query this before relative color changes (e.g., "darken by 10%") to ensure accuracy. ' +
+  'For absolute changes, you may use recently queried state from context if no manual interactions occurred.'
 ```
 
 ## The Context Window Growth Problem
@@ -295,20 +302,53 @@ You now have a **three-layer caching architecture**:
 
 **How is the decision made?**
 
-**Currently implicit:**
-- Claude uses heuristics (recency, explicit requests, uncertainty)
-- No explicit "if cached, use cache" logic
-- Tool descriptions provide minimal guidance
+**Now with explicit guidance:**
+- Claude uses heuristics (recency, explicit requests, uncertainty) **plus** explicit tool descriptions
+- Tool descriptions now provide clear guidance on when to query vs. use context
+- State responses include metadata (timestamps, source, staleness warnings) to help decision-making
+- Relative manipulation tools explicitly instruct Claude to query state first
 
-**Recommendations:**
-- Enhance tool descriptions to guide Claude
-- Add state metadata (timestamps, staleness warnings)
-- Encourage querying before relative changes
-- Use `forceRefresh` when manual interactions occurred
+**✅ Implemented improvements:**
+- ✅ Enhanced `forceRefresh` parameter descriptions (14 tools)
+- ✅ State metadata in all responses (timestamps, source, staleness warnings)
+- ✅ Enhanced getter tool descriptions (14 tools) with guidance on query vs. context
+- ✅ Enhanced relative manipulation tool descriptions (15+ tools) with explicit query instructions
+
+**How Claude should now make decisions:**
+
+1. **For relative changes**: Always query current state first using the appropriate getter tool
+2. **For absolute changes**: May use recently queried state from context if no manual interactions occurred
+3. **When to use `forceRefresh: true`**: 
+   - User mentioned manual interaction
+   - Significant time has passed since last query
+   - Accuracy is critical
+4. **State metadata helps**: Timestamps and source indicators help Claude understand state freshness
 
 The growing context window **does** create a form of caching, but it's different from your server cache:
 - **Server cache**: Explicit, controlled, fast, can be stale
 - **Context cache**: Implicit, uncontrolled, "free", can be stale
 
-Both have their place, and the decision between them is currently made implicitly by Claude based on context and understanding.
+Both have their place, and the decision between them is now guided by explicit tool descriptions and state metadata, while still relying on Claude's understanding of the context.
+
+## Implementation Summary
+
+The following improvements have been implemented in `server.js`:
+
+1. **State Metadata System**
+   - `getState()` function now returns `{ state, metadata }` with source, timestamp, and cache status
+   - `formatStateResponse()` helper formats all state responses with metadata
+   - All 14 getter tools updated to use metadata formatting
+
+2. **Enhanced Parameter Descriptions**
+   - All 14 `forceRefresh` parameters now include explicit guidance on when to use `true` vs. `false`
+
+3. **Enhanced Tool Descriptions**
+   - All 14 getter tools include guidance on when to query vs. use context
+   - All 15+ relative manipulation tools include explicit instructions to query state first
+
+4. **Response Format**
+   - State responses now include: `Property: value (queried at ISO-timestamp, source: cache|fresh (staleness warning))`
+   - Example: `Model color: #ff0000 (queried at 2024-01-15T10:30:00.000Z, source: cache (may be stale if user manually interacted))`
+
+These improvements provide Claude with explicit guidance while maintaining the flexibility to make intelligent decisions based on context.
 
