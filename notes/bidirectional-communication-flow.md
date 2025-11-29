@@ -24,7 +24,7 @@ The system uses a **hybrid approach** with caching for speed and optional force 
 
 ### Step 2: MCP Tool Handler (server.js)
 
-**Location:** `server.js` lines 1874-1920
+**Location:** `server.js` lines 1994-2044
 
 ```javascript
 mcpServer.registerTool(
@@ -43,11 +43,14 @@ mcpServer.registerTool(
     }
 
     try {
-      const state = await getState(sessionId, forceRefresh);
+      const { state, metadata } = await getState(sessionId, forceRefresh);
       const color = state.model?.color || '#808080';
       
       return {
-        content: [{ type: 'text', text: `Model color: ${color}` }]
+        content: [{ 
+          type: 'text', 
+          text: formatStateResponse(color, 'Model color', sessionId, forceRefresh, metadata)
+        }]
       };
     } catch (error) {
       return {
@@ -68,37 +71,58 @@ mcpServer.registerTool(
 
 ### Step 3: State Retrieval Logic (server.js)
 
-**Location:** `server.js` lines 328-357
+**Location:** `server.js` lines 328-378
 
 ```javascript
 async function getState(sessionId, forceRefresh = false) {
+  let state;
+  let source;
+  let wasCached = false;
+  
   // If force refresh, always query browser
   if (forceRefresh) {
     try {
-      return await queryStateFromBrowser(sessionId, true);
+      state = await queryStateFromBrowser(sessionId, true);
+      source = 'fresh';
     } catch (error) {
       // If force refresh fails, fall back to cache if available
       const cached = sessionStateCache.get(sessionId);
       if (cached) {
         console.warn(`Force refresh failed for session ${sessionId}, returning cached state: ${error.message}`);
-        return cached.state;
+        state = cached.state;
+        source = 'cache';
+        wasCached = true;
+      } else {
+        throw error;
       }
-      throw error;
+    }
+  } else {
+    // Otherwise, return cached state if available
+    const cached = sessionStateCache.get(sessionId);
+    if (cached) {
+      state = cached.state;
+      source = 'cache';
+      wasCached = true;
+    } else {
+      // No cache, query browser
+      try {
+        state = await queryStateFromBrowser(sessionId, false);
+        source = 'fresh';
+      } catch (error) {
+        throw new Error(`Unable to retrieve state: ${error.message}. Browser may be disconnected.`);
+      }
     }
   }
   
-  // Otherwise, return cached state if available
-  const cached = sessionStateCache.get(sessionId);
-  if (cached) {
-    return cached.state;  // Fast path: return cached state immediately
-  }
-  
-  // No cache, query browser
-  try {
-    return await queryStateFromBrowser(sessionId, false);
-  } catch (error) {
-    throw new Error(`Unable to retrieve state: ${error.message}. Browser may be disconnected.`);
-  }
+  // Return state with metadata
+  return {
+    state,
+    metadata: {
+      source,
+      wasCached,
+      timestamp: new Date().toISOString()
+    }
+  };
 }
 ```
 
@@ -239,7 +263,7 @@ async _handleStateQuery(requestId, forceRefresh = false) {
 
 ### Step 8: Application Retrieves State (Application.js)
 
-**Location:** `src/Application.js` lines 518-521
+**Location:** `src/Application.js` lines 510-522
 
 ```javascript
 this.wsClient = new WebSocketClient(
@@ -419,7 +443,7 @@ Claude doesn't store state in a separate data structure. Instead, the tool respo
 
 ### Step 14: MCP Tool Handler for Setting Color
 
-**Location:** `server.js` lines 428-467
+**Location:** `server.js` (example - actual line numbers vary by tool, typically around lines 450-500 for change_model_color)
 
 ```javascript
 mcpServer.registerTool(
@@ -461,7 +485,7 @@ mcpServer.registerTool(
 
 ### Step 15: Routing Command to Browser
 
-**Location:** `server.js` lines 365-387
+**Location:** `server.js` lines 408-430
 
 ```javascript
 function routeToCurrentSession(command) {
@@ -895,7 +919,7 @@ Model color changed to #cc0000
 4. If cache exists, returns cached state with warning
 5. If no cache, returns error to Claude
 
-**Location:** `server.js` lines 328-357
+**Location:** `server.js` lines 328-378
 
 ### Browser Disconnected During Command
 
@@ -918,7 +942,7 @@ Model color changed to #cc0000
 3. Timeout fires after 2 seconds
 4. Error returned to Claude
 
-**Location:** `server.js` lines 246-248
+**Location:** `server.js` lines 200-230 (WebSocket message handling)
 
 ---
 

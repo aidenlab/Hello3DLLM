@@ -16,7 +16,7 @@ When an MCP tool is called (e.g., `change_model_color`), the tool handler create
 ### Example: change_model_color
 
 ```javascript
-// server.js lines 216-254
+// server.js (example - actual line numbers vary by tool)
 mcpServer.registerTool(
   'change_model_color',  // MCP tool name (snake_case)
   {
@@ -43,7 +43,7 @@ mcpServer.registerTool(
 
 ### Routing Function
 
-The `routeToCurrentSession()` function (server.js line 165) sends commands to the browser client via WebSocket:
+The `routeToCurrentSession()` function (server.js lines 408-430) sends commands to the browser client via WebSocket:
 
 ```javascript
 function routeToCurrentSession(command) {

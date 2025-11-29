@@ -3,6 +3,8 @@
 **Date**: Discussion Document  
 **Topic**: Enabling bidirectional communication between MCP chat clients (ChatGPT, Claude) and the 3D visualization app
 
+**⚠️ STATUS UPDATE**: This document describes the design and implementation approach. **Bidirectional communication has been fully implemented** as of the current codebase. See `bidirectional-communication-flow.md` for the complete implementation details.
+
 ## Table of Contents
 
 1. [Current Architecture](#current-architecture)

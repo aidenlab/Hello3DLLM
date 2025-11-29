@@ -172,7 +172,7 @@ All state values use **numeric representations** (not direction names) for preci
 
 ## State Retrieval Functions
 
-These functions are used by Claude/ChatGPT to query the current state of the scene. **Note**: Currently, these functions send queries to the browser but do not return state data (bidirectional communication not yet fully implemented). They log state to the browser console.
+These functions are used by Claude/ChatGPT to query the current state of the scene. **Note**: Bidirectional communication is **fully implemented**. These functions return actual state data to Claude/ChatGPT, enabling conditional logic, incremental changes, and state verification.
 
 ### Model State Retrieval
 
@@ -299,12 +299,13 @@ The following direction names are supported for azimuth values (in absolute posi
 5. State is updated internally (Three.js objects)
 6. Scene renders with new state
 
-### State Retrieval Flow (Current Limitation)
-1. MCP tool called by Claude/ChatGPT
-2. Server routes query to browser via WebSocket
-3. Browser command handler retrieves state
-4. **State is logged to console but NOT returned to Claude** (bidirectional communication not yet implemented)
-5. Full implementation requires browser → server WebSocket responses
+### State Retrieval Flow (Fully Implemented)
+1. MCP tool called by Claude/ChatGPT (e.g., `get_model_color`)
+2. Server routes query to browser via WebSocket with unique `requestId`
+3. Browser command handler retrieves state from SceneManager
+4. Browser sends state response back to server via WebSocket with matching `requestId`
+5. Server resolves Promise and returns state to Claude/ChatGPT
+6. State is cached on server for fast subsequent queries (unless `forceRefresh: true`)
 
 ### Relative Adjustment Implementation
 Relative adjustment functions:
@@ -315,10 +316,15 @@ Relative adjustment functions:
 
 ---
 
+## Current Implementation Status
+
+- ✅ **Bidirectional State Queries**: Fully implemented - Browser → Server responses for state retrieval
+- ✅ **State Caching**: Server-side cache of current state for faster queries (hybrid approach with `forceRefresh` option)
+- ✅ **State Metadata**: All state queries include timestamps, source indicators (cache vs. fresh), and staleness warnings
+- ✅ **Automatic State Updates**: Browser automatically pushes state updates after each command
+
 ## Future Enhancements
 
-- **Bidirectional State Queries**: Browser → Server responses for state retrieval
-- **State Caching**: Server-side cache of current state for faster queries
 - **State Comparison Tools**: Functions to compare two states
 - **State Snapshots**: Save/restore complete scene state
 - **State Validation**: Verify state consistency and bounds

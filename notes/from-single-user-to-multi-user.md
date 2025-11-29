@@ -49,18 +49,22 @@ The solution implements **session-based routing** using URL-based session pairin
 - `broadcastToClients(command)`: Kept for backward compatibility (no longer used)
 
 **Request Context**
-- `currentRequestSessionId`: Request-scoped variable set before tool handlers execute
+- `sessionContext`: AsyncLocalStorage-based context that maintains session ID across async operations
+- `getCurrentSessionId()`: Helper function that works in both HTTP and STDIO modes
+- In HTTP mode: Uses `sessionContext.getStore()` from AsyncLocalStorage
+- In STDIO mode: Uses global `STDIO_SESSION_ID` (unique UUID per process)
 - Allows tool handlers to access the session ID without modifying their signatures
-- Cleared in `finally` block to ensure cleanup even on errors
+- Context is maintained automatically by AsyncLocalStorage across async operations
 
 **Tool Handler Updates**
 - All 13 tool handlers updated to use `routeToCurrentSession()` instead of `broadcastToClients()`
 - Commands now route only to the browser associated with the calling session
 
 **POST Handler Updates**
-- Sets `currentRequestSessionId` before handling request
+- Uses `sessionContext.run(sessionId, async () => {...})` to set context before handling request
 - Routes tool call notifications to specific session
-- Clears context in `finally` block for error safety
+- Context is automatically maintained by AsyncLocalStorage across all async operations
+- Works seamlessly in both HTTP and STDIO modes
 
 #### 2. Client-Side Changes (`src/WebSocketClient.js`)
 
@@ -102,15 +106,26 @@ The solution implements **session-based routing** using URL-based session pairin
 
 ### Command Routing Flow
 
+**HTTP Mode:**
 ```
 1. ChatGPT calls tool via MCP (session: abc-123)
 2. POST handler receives request with mcp-session-id header
-3. Sets currentRequestSessionId = 'abc-123'
+3. sessionContext.run(sessionId, async () => {...}) sets context
 4. Tool handler executes, calls routeToCurrentSession(command)
-5. routeToCurrentSession uses currentRequestSessionId to call sendToSession('abc-123', command)
-6. sendToSession looks up wsClients.get('abc-123') and sends command
+5. routeToCurrentSession calls getCurrentSessionId() → gets from sessionContext
+6. sendToSession('abc-123', command) looks up wsClients.get('abc-123') and sends command
 7. Only browser with sessionId='abc-123' receives the command
-8. Context cleared in finally block
+8. Context automatically maintained by AsyncLocalStorage across async operations
+```
+
+**STDIO Mode:**
+```
+1. Claude Desktop calls tool via MCP (subprocess mode)
+2. Server generates unique STDIO_SESSION_ID on startup (UUID)
+3. Tool handler executes, calls routeToCurrentSession(command)
+4. routeToCurrentSession calls getCurrentSessionId() → gets STDIO_SESSION_ID
+5. sendToSession(STDIO_SESSION_ID, command) routes to browser with matching session ID
+6. Only browser with matching sessionId receives the command
 ```
 
 ### Edge Cases Handled
@@ -135,9 +150,16 @@ The solution implements **session-based routing** using URL-based session pairin
    - Once MCP session connects with matching ID, commands start routing
 
 5. **Concurrent Requests**
-   - Request-scoped context ensures each request has correct session ID
-   - `finally` block ensures cleanup even on errors
+   - AsyncLocalStorage ensures each request has correct session ID
+   - Context is automatically isolated per async execution context
    - No cross-contamination between concurrent requests
+   - Works seamlessly with async/await patterns
+
+6. **STDIO Mode Support**
+   - Each Claude Desktop process gets unique STDIO_SESSION_ID
+   - Browser connects with matching session ID from URL
+   - Commands route correctly even without HTTP request context
+   - Full session isolation maintained in subprocess mode
 
 ## Files Modified
 
@@ -226,14 +248,15 @@ The server needs to know which URL to provide in connection links. Configure it 
 
 ## Technical Notes
 
-### Why Request-Scoped Context?
+### Why AsyncLocalStorage?
 
-Tool handlers are registered with the MCP server and don't have direct access to the HTTP request context. Using a request-scoped variable (`currentRequestSessionId`) allows tool handlers to access the session ID without:
+Tool handlers are registered with the MCP server and don't have direct access to the HTTP request context. Using `AsyncLocalStorage` allows tool handlers to access the session ID without:
 - Modifying tool handler signatures
 - Passing context through multiple layers
-- Using complex async context mechanisms
+- Manual cleanup (AsyncLocalStorage handles it automatically)
+- Works seamlessly with async/await patterns
 
-The context is set before `transport.handleRequest()` and cleared in a `finally` block to ensure cleanup even on errors.
+The context is set using `sessionContext.run(sessionId, async () => {...})` which automatically maintains the session ID across all async operations within that execution context. This works in both HTTP mode (per request) and STDIO mode (per process).
 
 ### Why URL-Based Pairing?
 
