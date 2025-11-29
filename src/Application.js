@@ -32,6 +32,10 @@ export class Application {
       height: rect.height
     });
     
+    // Expose camera controller and rotation controller to scene manager for state access
+    this.sceneManager.setCameraController(this.cameraController);
+    this.sceneManager.setRotationController(this.rotationController);
+    
     // Track mouse velocity for momentum
     this.lastMousePosition = { x: 0, y: 0 };
     this.lastMouseTime = 0;
@@ -72,6 +76,10 @@ export class Application {
       ['changeBackgroundColor', (command) => {
         this.sceneManager.changeBackgroundColor(command.color);
       }],
+      ['getBackgroundColor', (command) => {
+        const color = this.sceneManager.getBackgroundColor();
+        console.log('Background color:', color);
+      }],
       // Key light controls
       ['setKeyLightIntensity', (command) => {
         this.sceneManager.setKeyLightIntensity(command.intensity);
@@ -97,6 +105,30 @@ export class Application {
       ['walkKeyLightOut', () => {
         this.sceneManager.walkKeyLightOut();
       }],
+      ['setKeyLightPositionSpherical', (command) => {
+        this.sceneManager.setKeyLightPositionSpherical(
+          command.azimuth,
+          command.elevation
+        );
+      }],
+      ['getKeyLightPositionSpherical', (command) => {
+        const position = this.sceneManager.getKeyLightPositionSpherical();
+        // Note: Response would need to be sent back via WebSocket for full implementation
+        // For now, just log it (MCP server will handle response)
+        console.log('Key light position (spherical):', position);
+      }],
+      ['getKeyLightIntensity', (command) => {
+        const intensity = this.sceneManager.getKeyLightIntensity();
+        console.log('Key light intensity:', intensity);
+      }],
+      ['getKeyLightColor', (command) => {
+        const color = this.sceneManager.getKeyLightColor();
+        console.log('Key light color:', color);
+      }],
+      ['getKeyLightSize', (command) => {
+        const size = this.sceneManager.getKeyLightSize();
+        console.log('Key light size:', size);
+      }],
       // Fill light controls
       ['setFillLightIntensity', (command) => {
         this.sceneManager.setFillLightIntensity(command.intensity);
@@ -121,6 +153,138 @@ export class Application {
       }],
       ['walkFillLightOut', () => {
         this.sceneManager.walkFillLightOut();
+      }],
+      ['setFillLightPositionSpherical', (command) => {
+        this.sceneManager.setFillLightPositionSpherical(
+          command.azimuth,
+          command.elevation
+        );
+      }],
+      ['getFillLightPositionSpherical', (command) => {
+        const position = this.sceneManager.getFillLightPositionSpherical();
+        // Note: Response would need to be sent back via WebSocket for full implementation
+        // For now, just log it (MCP server will handle response)
+        console.log('Fill light position (spherical):', position);
+      }],
+      ['getFillLightIntensity', (command) => {
+        const intensity = this.sceneManager.getFillLightIntensity();
+        console.log('Fill light intensity:', intensity);
+      }],
+      ['getFillLightColor', (command) => {
+        const color = this.sceneManager.getFillLightColor();
+        console.log('Fill light color:', color);
+      }],
+      ['getFillLightSize', (command) => {
+        const size = this.sceneManager.getFillLightSize();
+        console.log('Fill light size:', size);
+      }],
+      // Camera control commands
+      ['dollyCamera', (command) => {
+        this.sceneManager.dollyCamera(command.distance);
+      }],
+      ['dollyCameraIn', (command) => {
+        this.sceneManager.dollyCameraIn(command.amount);
+      }],
+      ['dollyCameraOut', (command) => {
+        this.sceneManager.dollyCameraOut(command.amount);
+      }],
+      ['setCameraFOV', (command) => {
+        this.sceneManager.setCameraFOV(command.fov);
+      }],
+      ['increaseCameraFOV', (command) => {
+        this.sceneManager.increaseCameraFOV(command.amount);
+      }],
+      ['decreaseCameraFOV', (command) => {
+        this.sceneManager.decreaseCameraFOV(command.amount);
+      }],
+      ['getCameraDistance', (command) => {
+        const distance = this.sceneManager.getCameraDistance();
+        console.log('Camera distance:', distance);
+      }],
+      ['getCameraFOV', (command) => {
+        const fov = this.sceneManager.getCameraFOV();
+        console.log('Camera FOV:', fov);
+      }],
+      // Model rotation commands
+      ['getModelRotation', (command) => {
+        const rotation = this.sceneManager.getModelRotation();
+        // Note: Response would need to be sent back via WebSocket for full implementation
+        // For now, just log it (MCP server will handle response)
+        console.log('Model rotation (Euler angles):', rotation);
+      }],
+      ['getModelColor', (command) => {
+        const color = this.sceneManager.getModelColor();
+        console.log('Model color:', color);
+      }],
+      ['getModelScale', (command) => {
+        const scale = this.sceneManager.getModelScale();
+        console.log('Model scale:', scale);
+      }],
+      ['setModelRotation', (command) => {
+        this.sceneManager.setModelRotation(
+          command.x,
+          command.y,
+          command.z
+        );
+      }],
+      ['rotateModelClockwise', (command) => {
+        this.sceneManager.rotateModelClockwise(command.degrees);
+      }],
+      ['rotateModelCounterclockwise', (command) => {
+        this.sceneManager.rotateModelCounterclockwise(command.degrees);
+      }],
+      ['nudgeModelPitchUp', (command) => {
+        this.sceneManager.nudgeModelPitchUp(command.degrees);
+      }],
+      ['nudgeModelPitchDown', (command) => {
+        this.sceneManager.nudgeModelPitchDown(command.degrees);
+      }],
+      ['nudgeModelRoll', (command) => {
+        this.sceneManager.nudgeModelRoll(command.degrees);
+      }],
+      // Key light relative adjustment commands
+      ['rotateKeyLightClockwise', (command) => {
+        this.sceneManager.rotateKeyLightClockwise(command.degrees);
+      }],
+      ['rotateKeyLightCounterclockwise', (command) => {
+        this.sceneManager.rotateKeyLightCounterclockwise(command.degrees);
+      }],
+      ['nudgeKeyLightElevationUp', (command) => {
+        this.sceneManager.nudgeKeyLightElevationUp(command.degrees);
+      }],
+      ['nudgeKeyLightElevationDown', (command) => {
+        this.sceneManager.nudgeKeyLightElevationDown(command.degrees);
+      }],
+      ['moveKeyLightTowardDirection', (command) => {
+        this.sceneManager.moveKeyLightTowardDirection(
+          command.direction,
+          command.degrees
+        );
+      }],
+      // Fill light relative adjustment commands
+      ['rotateFillLightClockwise', (command) => {
+        this.sceneManager.rotateFillLightClockwise(command.degrees);
+      }],
+      ['rotateFillLightCounterclockwise', (command) => {
+        this.sceneManager.rotateFillLightCounterclockwise(command.degrees);
+      }],
+      ['nudgeFillLightElevationUp', (command) => {
+        this.sceneManager.nudgeFillLightElevationUp(command.degrees);
+      }],
+      ['nudgeFillLightElevationDown', (command) => {
+        this.sceneManager.nudgeFillLightElevationDown(command.degrees);
+      }],
+      ['moveFillLightTowardDirection', (command) => {
+        this.sceneManager.moveFillLightTowardDirection(
+          command.direction,
+          command.degrees
+        );
+      }],
+      ['setKeyLightDistance', (command) => {
+        this.sceneManager.setKeyLightDistance(command.distance);
+      }],
+      ['setFillLightDistance', (command) => {
+        this.sceneManager.setFillLightDistance(command.distance);
       }]
     ]);
   }
@@ -350,7 +514,11 @@ export class Application {
       (connected) => {
         this._updateConnectionStatus(connected);
       },
-      sessionId
+      sessionId,
+      (forceRefresh) => {
+        // State query callback - return current scene state
+        return this.getSceneState();
+      }
     );
     this.wsClient.connect();
   }
@@ -378,9 +546,18 @@ export class Application {
   }
 
   _handleWebSocketCommand(command) {
+    // Skip state updates for getter commands and toolCall notifications
+    const isGetterCommand = command.type.startsWith('get');
+    const isToolCallNotification = command.type === 'toolCall';
+    
     const handler = this.commandHandlers.get(command.type);
     if (handler) {
       handler(command);
+      
+      // Send state update after executing state-modifying commands
+      if (!isGetterCommand && !isToolCallNotification) {
+        this._sendStateUpdate();
+      }
     } else {
       console.warn('Unknown command type:', command.type);
     }
@@ -457,6 +634,47 @@ export class Application {
       this.sceneManager.render(this.cameraController.getCamera());
     };
     animate();
+  }
+
+  /**
+   * Gets the complete scene state for bidirectional communication
+   * @returns {Object} Complete scene state object
+   */
+  getSceneState() {
+    return {
+      model: {
+        color: this.sceneManager.getModelColor(),
+        scale: this.sceneManager.getModelScale(),
+        rotation: this.sceneManager.getModelRotation()
+      },
+      background: this.sceneManager.getBackgroundColor(),
+      keyLight: {
+        intensity: this.sceneManager.getKeyLightIntensity(),
+        color: this.sceneManager.getKeyLightColor(),
+        position: this.sceneManager.getKeyLightPositionSpherical(),
+        size: this.sceneManager.getKeyLightSize()
+      },
+      fillLight: {
+        intensity: this.sceneManager.getFillLightIntensity(),
+        color: this.sceneManager.getFillLightColor(),
+        position: this.sceneManager.getFillLightPositionSpherical(),
+        size: this.sceneManager.getFillLightSize()
+      },
+      camera: {
+        distance: this.sceneManager.getCameraDistance(),
+        fov: this.sceneManager.getCameraFOV()
+      }
+    };
+  }
+
+  /**
+   * Sends state update to server (push update after command execution)
+   */
+  _sendStateUpdate() {
+    if (this.wsClient && this.wsClient.isConnected()) {
+      const state = this.getSceneState();
+      this.wsClient.sendStateUpdate(state);
+    }
   }
 }
 

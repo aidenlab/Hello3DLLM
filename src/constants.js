@@ -10,13 +10,13 @@ export const CONFIG = {
         FOV: 32,
         NEAR: 0.1,
         FAR: 1000,
-        INITIAL_Z: 32,
-        MIN_ZOOM: 8,  // Minimum camera distance (for dollying)
-        MAX_ZOOM: 64, // Maximum camera distance (for dollying)
-        ZOOM_ANGLE_MIN: 0.5,  // Minimum zoom angle (camera.zoom - wider FOV)
-        ZOOM_ANGLE_MAX: 5.0,  // Maximum zoom angle (camera.zoom - narrower FOV)
-        ZOOM_SPEED: 0.1,  // Speed for dollying (position changes)
-        ZOOM_ANGLE_SPEED: 0.02,  // Speed for zoom angle (FOV) changes
+        INITIAL_DISTANCE: 32,  // Initial camera distance from origin
+        MIN_DISTANCE: 8,  // Minimum camera distance (for dollying)
+        MAX_DISTANCE: 64, // Maximum camera distance (for dollying)
+        FOV_MIN: 0.5,  // Minimum field of view (camera.zoom - wider FOV)
+        FOV_MAX: 5.0,  // Maximum field of view (camera.zoom - narrower FOV)
+        DOLLY_SPEED: 0.1,  // Speed for dollying (distance changes)
+        FOV_SPEED: 0.02,  // Speed for field of view changes
     },
 
     // Model settings

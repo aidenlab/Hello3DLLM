@@ -179,7 +179,7 @@ If you want to use your Netlify-hosted app instead of running locally:
 - See [Clean Up Existing Processes](#clean-up-existing-processes-start-with-a-clean-slate) section below for detailed commands
 - Make sure you've stopped any manually running server instances
 - Check if port 3000 or 3001 is in use and kill any processes using those ports
-- **macOS/Linux:** `lsof -ti :3000 :3001 | xargs kill -9`
+- **macOS/Linux:** `lsof -ti :3000 -ti :3001 | xargs kill -9`
 - **Windows:** Use the PowerShell or Command Prompt commands from the cleanup section
 
 #### Server Not Starting
@@ -393,7 +393,7 @@ netstat -ano | findstr :3001
 **macOS/Linux:**
 ```bash
 # Kill processes on both ports (recommended)
-lsof -ti :3000 :3001 | xargs kill -9
+lsof -ti :3000 -ti :3001 | xargs kill -9
 
 # Or kill them individually
 # First, find the PID (Process ID) from lsof output, then:
